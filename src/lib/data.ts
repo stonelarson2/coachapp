@@ -14,7 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
-import type { UserDoc, WeightEntry } from "@/lib/types";
+import type { FoodLogEntry, MealType, UserDoc, WeightEntry } from "@/lib/types";
 
 /** Realtime list of clients linked to a coach. */
 export function useClients(coachId: string | undefined) {
@@ -130,4 +130,74 @@ export async function updateUserFields(
   fields: Partial<UserDoc>,
 ): Promise<void> {
   await updateDoc(doc(getDb(), "users", uid), fields);
+}
+
+// ---- Food log ----
+
+/** Realtime food log entries for a user on a given ISO date. */
+export function useFoodLog(userId: string | undefined, date: string) {
+  const [entries, setEntries] = React.useState<FoodLogEntry[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!userId) return;
+    setLoading(true);
+    const q = query(
+      collection(getDb(), "foodLogs"),
+      where("userId", "==", userId),
+      where("date", "==", date),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as FoodLogEntry);
+        list.sort((a, b) => a.createdAt - b.createdAt);
+        setEntries(list);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [userId, date]);
+
+  return { entries, loading };
+}
+
+export interface FoodLogInput {
+  meal: MealType;
+  name: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+export async function addFoodLog(
+  userId: string,
+  date: string,
+  input: FoodLogInput,
+): Promise<void> {
+  await addDoc(collection(getDb(), "foodLogs"), {
+    userId,
+    date,
+    ...input,
+    createdAt: Date.now(),
+  });
+}
+
+export async function deleteFoodLog(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), "foodLogs", id));
+}
+
+/** Sum macros + calories across food log entries. */
+export function sumMacros(entries: FoodLogEntry[]) {
+  return entries.reduce(
+    (acc, e) => ({
+      calories: acc.calories + e.calories,
+      proteinG: acc.proteinG + e.proteinG,
+      carbsG: acc.carbsG + e.carbsG,
+      fatG: acc.fatG + e.fatG,
+    }),
+    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+  );
 }
