@@ -13,8 +13,20 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { getDb } from "@/lib/firebase/client";
-import type { FoodLogEntry, MealType, UserDoc, WeightEntry } from "@/lib/types";
+import {
+  deleteObject,
+  getDownloadURL,
+  ref as storageRef,
+  uploadBytes,
+} from "firebase/storage";
+import { getDb, getStorageInstance } from "@/lib/firebase/client";
+import type {
+  FoodLogEntry,
+  MealType,
+  PhotoDoc,
+  UserDoc,
+  WeightEntry,
+} from "@/lib/types";
 
 /** Realtime list of clients linked to a coach. */
 export function useClients(coachId: string | undefined) {
@@ -215,6 +227,63 @@ export async function addFoodLog(
 
 export async function deleteFoodLog(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), "foodLogs", id));
+}
+
+// ---- Photos ----
+
+/** Realtime progress photos for a user, newest first. */
+export function usePhotos(userId: string | undefined) {
+  const [photos, setPhotos] = React.useState<PhotoDoc[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!userId) return;
+    const q = query(
+      collection(getDb(), "photos"),
+      where("userId", "==", userId),
+      orderBy("date", "desc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setPhotos(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PhotoDoc));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [userId]);
+
+  return { photos, loading };
+}
+
+export async function uploadPhoto(
+  userId: string,
+  file: File,
+  date: string,
+  note: string,
+): Promise<void> {
+  const path = `photos/${userId}/${Date.now()}-${file.name}`;
+  const sref = storageRef(getStorageInstance(), path);
+  await uploadBytes(sref, file);
+  const url = await getDownloadURL(sref);
+  await addDoc(collection(getDb(), "photos"), {
+    userId,
+    storagePath: path,
+    url,
+    date,
+    note,
+    createdAt: Date.now(),
+  });
+}
+
+export async function deletePhoto(photo: PhotoDoc): Promise<void> {
+  await deleteDoc(doc(getDb(), "photos", photo.id));
+  try {
+    await deleteObject(storageRef(getStorageInstance(), photo.storagePath));
+  } catch {
+    // Storage object may already be gone; ignore.
+  }
 }
 
 /** Sum macros + calories across food log entries. */
