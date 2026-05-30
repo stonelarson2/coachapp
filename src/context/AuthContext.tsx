@@ -11,7 +11,7 @@ import {
   type User,
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/client";
+import { getFirebaseAuth, getDb } from "@/lib/firebase/client";
 import type { UserDoc } from "@/lib/types";
 
 interface AuthState {
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileResolved, setProfileResolved] = React.useState(false);
 
   React.useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
+    return onAuthStateChanged(getFirebaseAuth(), (u) => {
       setUser(u);
       setAuthResolved(true);
       if (!u) {
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Subscribe to the user's profile document in real time.
   React.useEffect(() => {
     if (!user) return;
-    const ref = doc(db, "users", user.uid);
+    const ref = doc(getDb(), "users", user.uid);
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = React.useCallback(
     async (name: string, email: string, password: string) => {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
       await updateProfile(cred.user, { displayName: name });
       return cred.user;
     },
@@ -71,12 +71,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const login = React.useCallback(async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
     return cred.user;
   }, []);
 
   const logout = React.useCallback(async () => {
-    await signOut(auth);
+    await signOut(getFirebaseAuth());
   }, []);
 
   const loading = !authResolved || (!!user && !profileResolved);

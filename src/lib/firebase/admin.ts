@@ -6,6 +6,9 @@
 //   FIREBASE_PROJECT_ID
 //   FIREBASE_CLIENT_EMAIL
 //   FIREBASE_PRIVATE_KEY   (with literal \n escapes; we unescape below)
+//
+// Initialization is lazy so that importing this module during `next build`
+// does not throw when env vars are absent.
 
 import "server-only";
 import {
@@ -18,8 +21,14 @@ import {
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-function createApp(): App {
-  if (getApps().length) return getApp();
+let cachedApp: App | null = null;
+
+function getAdminApp(): App {
+  if (cachedApp) return cachedApp;
+  if (getApps().length) {
+    cachedApp = getApp();
+    return cachedApp;
+  }
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -31,11 +40,16 @@ function createApp(): App {
     );
   }
 
-  return initializeApp({
+  cachedApp = initializeApp({
     credential: cert({ projectId, clientEmail, privateKey }),
   });
+  return cachedApp;
 }
 
-const adminApp = createApp();
-export const adminAuth: Auth = getAuth(adminApp);
-export const adminDb: Firestore = getFirestore(adminApp);
+export function getAdminAuth(): Auth {
+  return getAuth(getAdminApp());
+}
+
+export function getAdminDb(): Firestore {
+  return getFirestore(getAdminApp());
+}
