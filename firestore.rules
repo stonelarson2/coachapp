@@ -1,0 +1,85 @@
+rules_version = '2';
+
+// Security rules for the coaching app.
+// - User profile docs are CREATED only via the Admin SDK (server onboarding),
+//   so clients can't grant themselves the coach role or change their coach.
+// - A user can read/update their own data.
+// - A coach can read/write the data of clients linked to them (client.coachId == coach.uid).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Look up the coachId on a user document.
+    function coachIdOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.coachId;
+    }
+
+    // Is the caller the coach of the given user?
+    function isCoachOf(uid) {
+      return isSignedIn() && coachIdOf(uid) == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid)
+        || (isSignedIn() && resource.data.coachId == request.auth.uid);
+
+      // Profiles are created server-side (Admin SDK bypasses these rules).
+      allow create: if false;
+      allow delete: if false;
+
+      // Owner can update their own doc but cannot change role/coachId/inviteCode.
+      // Their coach can update their doc (e.g. set goals / targets).
+      allow update: if
+        (isOwner(uid)
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.coachId == resource.data.coachId
+          && request.resource.data.inviteCode == resource.data.inviteCode)
+        || (isSignedIn() && resource.data.coachId == request.auth.uid);
+    }
+
+    // Owner-or-coach access for per-user collections keyed by a userId field.
+    match /weightEntries/{id} {
+      allow read: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+        || isCoachOf(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+    }
+
+    match /foodLogs/{id} {
+      allow read: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+        || isCoachOf(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+    }
+
+    match /photos/{id} {
+      allow read: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+    }
+
+    match /insights/{id} {
+      allow read: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+      // Insights are written server-side via Admin SDK.
+      allow write: if false;
+    }
+
+    match /messages/{id} {
+      allow read: if isSignedIn()
+        && (request.auth.uid == resource.data.coachId
+            || request.auth.uid == resource.data.clientId);
+      allow create: if isSignedIn()
+        && request.auth.uid == request.resource.data.senderId
+        && (request.auth.uid == request.resource.data.coachId
+            || request.auth.uid == request.resource.data.clientId);
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Storage rules for progress photos.
+// Photos live under photos/{userId}/{filename}.
+// A client can read/write their own photos. A coach can read their clients' photos.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /photos/{userId}/{fileName} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isCoachOfOwner() {
+        return request.auth != null
+          && firestore.get(/databases/(default)/documents/users/$(userId)).data.coachId == request.auth.uid;
+      }
+      allow read: if isOwner() || isCoachOfOwner();
+      allow write: if isOwner()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
