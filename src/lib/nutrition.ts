@@ -1,7 +1,7 @@
 // Calorie & macro calculations.
 // Calorie targets use the Mifflin-St Jeor equation.
 
-import type { ActivityLevel, Gender, GoalType, MacroTargets, Profile } from "./types";
+import type { ActivityLevel, GoalType, MacroTargets, Profile } from "./types";
 
 /** Activity multipliers applied to BMR to estimate TDEE. */
 export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {

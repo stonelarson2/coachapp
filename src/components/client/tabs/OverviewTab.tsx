@@ -72,19 +72,14 @@ function WeightLogger({
 }) {
   const { target } = useWorkspace();
   const { entries } = useWeightEntries(userId);
-  const [value, setValue] = React.useState("");
+  // Prefill with the most recent weight (in display unit), computed once.
+  const [value, setValue] = React.useState(() => {
+    const latest = target.currentWeightKg ?? target.profile?.weightKg;
+    return latest != null ? fromKg(latest, unit).toFixed(1) : "";
+  });
   const [date, setDate] = React.useState(todayISO());
   const [busy, setBusy] = React.useState(false);
   const [msg, setMsg] = React.useState("");
-
-  // Prefill with the most recent weight (in display unit).
-  React.useEffect(() => {
-    const latest = target.currentWeightKg ?? target.profile?.weightKg;
-    if (latest != null && value === "") {
-      setValue(fromKg(latest, unit).toFixed(1));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unit]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

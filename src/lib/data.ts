@@ -22,6 +22,7 @@ import {
 import { getDb, getStorageInstance } from "@/lib/firebase/client";
 import type {
   FoodLogEntry,
+  InsightDoc,
   MealType,
   MessageDoc,
   PhotoDoc,
@@ -154,7 +155,6 @@ export function useFoodLog(userId: string | undefined, date: string) {
 
   React.useEffect(() => {
     if (!userId) return;
-    setLoading(true);
     const q = query(
       collection(getDb(), "foodLogs"),
       where("userId", "==", userId),
@@ -183,7 +183,6 @@ export function useFoodLogRange(userId: string | undefined, startDate: string) {
 
   React.useEffect(() => {
     if (!userId) return;
-    setLoading(true);
     const q = query(
       collection(getDb(), "foodLogs"),
       where("userId", "==", userId),
@@ -287,6 +286,34 @@ export async function deletePhoto(photo: PhotoDoc): Promise<void> {
   }
 }
 
+// ---- Insights ----
+
+/** Realtime list of saved AI insights for a user, newest first. */
+export function useInsights(userId: string | undefined) {
+  const [insights, setInsights] = React.useState<InsightDoc[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!userId) return;
+    const q = query(
+      collection(getDb(), "insights"),
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setInsights(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as InsightDoc));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [userId]);
+
+  return { insights, loading };
+}
+
 // ---- Messages ----
 
 /** Realtime chat thread between a coach and a client, oldest first. */
@@ -295,10 +322,7 @@ export function useMessages(coachId: string | undefined, clientId: string | unde
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (!coachId || !clientId) {
-      setLoading(false);
-      return;
-    }
+    if (!coachId || !clientId) return;
     const q = query(
       collection(getDb(), "messages"),
       where("coachId", "==", coachId),
