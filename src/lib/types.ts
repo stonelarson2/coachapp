@@ -60,6 +60,9 @@ export interface UserDoc {
   meeting?: MeetingSettings;
   /** Preferred display unit for weight in the UI. */
   weightUnit?: "kg" | "lb";
+  /** Denormalized weight snapshots (kg) for fast dashboard rendering. */
+  startWeightKg?: number;
+  currentWeightKg?: number;
   createdAt: number; // epoch ms
 }
 

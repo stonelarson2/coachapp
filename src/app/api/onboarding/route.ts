@@ -133,6 +133,8 @@ export async function POST(req: Request) {
     macroTargets,
     meeting: { frequency: "off" },
     weightUnit: "lb",
+    startWeightKg: profile.weightKg,
+    currentWeightKg: profile.weightKg,
     createdAt: now,
   };
   await userRef.set(doc);
