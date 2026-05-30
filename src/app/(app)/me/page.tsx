@@ -1,17 +1,14 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import { Guard } from "@/components/Guard";
+import { ClientWorkspace } from "@/components/client/ClientWorkspace";
 
 export default function MyProgressPage() {
   const { profile } = useAuth();
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900">
-        Hi {profile?.name}
-      </h1>
-      <p className="mt-2 text-gray-600">
-        Your progress dashboard is coming soon.
-      </p>
-    </div>
+    <Guard role="client">
+      {profile && <ClientWorkspace userId={profile.uid} />}
+    </Guard>
   );
 }
