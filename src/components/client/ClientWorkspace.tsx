@@ -52,7 +52,9 @@ export function ClientWorkspace({ userId }: { userId: string }) {
   ];
 
   return (
-    <WorkspaceProvider value={{ target, viewerRole: profile.role, isCoachView, unit }}>
+    <WorkspaceProvider
+      value={{ target, viewerId: profile.uid, viewerRole: profile.role, isCoachView, unit }}
+    >
       <div className="space-y-4">
         {isCoachView && (
           <Link href="/dashboard" className="text-sm text-gray-500 hover:underline">

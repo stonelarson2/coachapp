@@ -6,6 +6,8 @@ import type { Role, UserDoc } from "@/lib/types";
 export interface WorkspaceCtx {
   /** The user being viewed (a client). */
   target: UserDoc;
+  /** The uid of the person viewing this workspace. */
+  viewerId: string;
   /** The role of the person viewing this workspace. */
   viewerRole: Role;
   /** True when a coach is viewing one of their clients. */

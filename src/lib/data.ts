@@ -23,6 +23,7 @@ import { getDb, getStorageInstance } from "@/lib/firebase/client";
 import type {
   FoodLogEntry,
   MealType,
+  MessageDoc,
   PhotoDoc,
   UserDoc,
   WeightEntry,
@@ -284,6 +285,53 @@ export async function deletePhoto(photo: PhotoDoc): Promise<void> {
   } catch {
     // Storage object may already be gone; ignore.
   }
+}
+
+// ---- Messages ----
+
+/** Realtime chat thread between a coach and a client, oldest first. */
+export function useMessages(coachId: string | undefined, clientId: string | undefined) {
+  const [messages, setMessages] = React.useState<MessageDoc[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!coachId || !clientId) {
+      setLoading(false);
+      return;
+    }
+    const q = query(
+      collection(getDb(), "messages"),
+      where("coachId", "==", coachId),
+      where("clientId", "==", clientId),
+      orderBy("createdAt", "asc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as MessageDoc));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [coachId, clientId]);
+
+  return { messages, loading };
+}
+
+export async function sendMessage(
+  coachId: string,
+  clientId: string,
+  senderId: string,
+  text: string,
+): Promise<void> {
+  await addDoc(collection(getDb(), "messages"), {
+    coachId,
+    clientId,
+    senderId,
+    text,
+    createdAt: Date.now(),
+  });
 }
 
 /** Sum macros + calories across food log entries. */
