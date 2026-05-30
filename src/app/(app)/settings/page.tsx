@@ -2,11 +2,19 @@
 
 import * as React from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme, type Theme } from "@/context/ThemeContext";
 import { updateUserFields } from "@/lib/data";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 
+const THEME_OPTIONS: { value: Theme; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+
 export default function SettingsPage() {
   const { profile } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [copied, setCopied] = React.useState(false);
 
   if (!profile) return null;
@@ -48,7 +56,7 @@ export default function SettingsPage() {
               Share this code with new clients so they can link to you at signup.
             </p>
             <div className="flex items-center gap-3">
-              <span className="rounded-lg bg-indigo-50 px-4 py-2 font-mono text-lg font-semibold tracking-widest text-indigo-700">
+              <span className="rounded-lg bg-primary-soft px-4 py-2 font-mono text-lg font-semibold tracking-widest text-primary-soft-fg">
                 {profile.inviteCode}
               </span>
               <Button variant="secondary" size="sm" onClick={copyCode}>
@@ -58,6 +66,33 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-sm text-gray-500">
+            Choose a light or dark theme, or follow your device setting.
+          </p>
+          <div className="inline-flex overflow-hidden rounded-lg border border-gray-300">
+            {THEME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setTheme(opt.value)}
+                className={
+                  "px-4 py-2 text-sm font-medium " +
+                  (theme === opt.value
+                    ? "bg-indigo-600 text-white"
+                    : "bg-surface text-gray-700 hover:bg-gray-50")
+                }
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -76,7 +111,7 @@ export default function SettingsPage() {
                   "px-4 py-2 text-sm font-medium " +
                   (profile.weightUnit === u
                     ? "bg-indigo-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-50")
+                    : "bg-surface text-gray-700 hover:bg-gray-50")
                 }
               >
                 {u === "lb" ? "Pounds (lb)" : "Kilograms (kg)"}

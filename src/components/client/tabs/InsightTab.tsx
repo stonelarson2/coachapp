@@ -55,7 +55,7 @@ export function InsightTab() {
                     "px-3 py-2 text-sm font-medium",
                     period === p.id
                       ? "bg-indigo-600 text-white"
-                      : "bg-white text-gray-700 hover:bg-gray-50",
+                      : "bg-surface text-gray-700 hover:bg-gray-50",
                   )}
                 >
                   {p.label}
@@ -72,7 +72,7 @@ export function InsightTab() {
       </Card>
 
       {insights.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-400">
+        <div className="rounded-xl border border-dashed border-gray-300 bg-surface p-10 text-center text-sm text-gray-400">
           No insights generated yet.
         </div>
       ) : (
@@ -127,7 +127,7 @@ function Markdown({ text }: { text: string }) {
     if (line.startsWith("## ")) {
       flush(`f-h-${i}`);
       blocks.push(
-        <h4 key={`h-${i}`} className="mb-1 mt-3 text-sm font-semibold text-indigo-700">
+        <h4 key={`h-${i}`} className="mb-1 mt-3 text-sm font-semibold text-primary-soft-fg">
           {line.slice(3)}
         </h4>,
       );

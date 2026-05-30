@@ -58,7 +58,7 @@ function RoleStep({ onChoose }: { onChoose: (s: Step) => void }) {
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <button
           onClick={() => onChoose("client")}
-          className="rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-indigo-400 hover:shadow"
+          className="rounded-xl border border-gray-200 bg-surface p-5 text-left shadow-sm transition hover:border-indigo-400 hover:shadow"
         >
           <div className="text-lg font-semibold text-gray-900">I&apos;m a client</div>
           <p className="mt-1 text-sm text-gray-500">
@@ -67,7 +67,7 @@ function RoleStep({ onChoose }: { onChoose: (s: Step) => void }) {
         </button>
         <button
           onClick={() => onChoose("coach")}
-          className="rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-indigo-400 hover:shadow"
+          className="rounded-xl border border-gray-200 bg-surface p-5 text-left shadow-sm transition hover:border-indigo-400 hover:shadow"
         >
           <div className="text-lg font-semibold text-gray-900">I&apos;m a coach</div>
           <p className="mt-1 text-sm text-gray-500">

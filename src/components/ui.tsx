@@ -9,7 +9,7 @@ type ButtonSize = "sm" | "md" | "lg";
 const buttonVariants: Record<ButtonVariant, string> = {
   primary: "bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-300",
   secondary:
-    "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 disabled:opacity-50",
+    "bg-surface text-gray-900 border border-gray-300 hover:bg-gray-50 disabled:opacity-50",
   ghost: "text-gray-700 hover:bg-gray-100 disabled:opacity-50",
   danger: "bg-red-600 text-white hover:bg-red-500 disabled:bg-red-300",
 };
@@ -47,7 +47,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        "rounded-xl border border-gray-200 bg-white shadow-sm",
+        "rounded-xl border border-gray-200 bg-surface shadow-sm",
         className,
       )}
       {...props}
@@ -87,7 +87,7 @@ export const Input = React.forwardRef<
     <input
       ref={ref}
       className={cn(
-        "h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+        "h-10 w-full rounded-lg border border-gray-300 bg-surface px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
         className,
       )}
       {...props}
@@ -103,7 +103,7 @@ export const Textarea = React.forwardRef<
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+        "w-full rounded-lg border border-gray-300 bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
         className,
       )}
       {...props}
@@ -119,7 +119,7 @@ export const Select = React.forwardRef<
     <select
       ref={ref}
       className={cn(
-        "h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+        "h-10 w-full rounded-lg border border-gray-300 bg-surface px-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
         className,
       )}
       {...props}
@@ -153,7 +153,7 @@ export function Badge({
     gray: "bg-gray-100 text-gray-700",
     green: "bg-green-100 text-green-700",
     red: "bg-red-100 text-red-700",
-    indigo: "bg-indigo-100 text-indigo-700",
+    indigo: "bg-indigo-100 text-primary-soft-fg",
     amber: "bg-amber-100 text-amber-700",
   };
   return (
@@ -191,7 +191,7 @@ export function Stat({
   hint?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-surface p-4 shadow-sm">
       <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </div>

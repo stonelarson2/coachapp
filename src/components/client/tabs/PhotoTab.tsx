@@ -19,7 +19,7 @@ export function PhotoTab() {
           <Spinner />
         </div>
       ) : photos.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-400">
+        <div className="rounded-xl border border-dashed border-gray-300 bg-surface p-10 text-center text-sm text-gray-400">
           {isCoachView
             ? "No progress photos uploaded yet."
             : "No photos yet — upload your first progress photo above."}
@@ -27,7 +27,7 @@ export function PhotoTab() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {photos.map((photo) => (
-            <div key={photo.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div key={photo.id} className="overflow-hidden rounded-xl border border-gray-200 bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photo.url}
@@ -95,7 +95,7 @@ function UploadCard({ userId }: { userId: string }) {
               type="file"
               accept="image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="block text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+              className="block text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-soft file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-soft-fg hover:file:bg-indigo-100"
               required
             />
           </div>

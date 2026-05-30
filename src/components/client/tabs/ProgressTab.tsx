@@ -114,7 +114,7 @@ export function ProgressTab() {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={weightData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                   <YAxis domain={["auto", "auto"]} tick={{ fontSize: 12 }} />
                   <Tooltip />
@@ -141,7 +141,7 @@ export function ProgressTab() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={calorieData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
@@ -194,7 +194,7 @@ export function ProgressTab() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={avgBars} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="g" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="cal" orientation="right" tick={{ fontSize: 12 }} />

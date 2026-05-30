@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-gray-200 bg-white transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-gray-200 bg-surface transition-transform md:static md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
                   active
-                    ? "bg-indigo-50 text-indigo-700"
+                    ? "bg-primary-soft text-primary-soft-fg"
                     : "text-gray-700 hover:bg-gray-100",
                 )}
               >
@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-4 md:hidden">
+        <header className="flex h-16 items-center gap-3 border-b border-gray-200 bg-surface px-4 md:hidden">
           <button
             onClick={() => setOpen(true)}
             className="rounded-lg p-2 text-gray-700 hover:bg-gray-100"

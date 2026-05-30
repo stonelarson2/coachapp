@@ -1,15 +1,61 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode (toggled on <html> by the theme provider). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Semantic design tokens ---------------------------------------------
+   Components reference these via Tailwind utilities (bg-surface, text-fg, …)
+   or via the remapped gray scale below. Values flip between light and dark. */
 :root {
-  --background: #f8fafc; /* slate-50 */
-  --foreground: #0f172a; /* slate-900 */
+  --background: #f8f9fa; /* large app surface (off-white, avoids glare) */
+  --foreground: #212529; /* primary body text */
+  --surface: #ffffff; /* cards, inputs, sidebar */
+  --elevated: #ffffff; /* modals / dropdowns (raised above surface) */
+  --primary-soft: #eef2ff; /* soft accent fill (badges, active nav) */
+  --primary-soft-fg: #4338ca; /* text on a soft accent fill */
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #e1e1e1;
+  --surface: #1e1e1e;
+  --elevated: #2a2a2a; /* lighter than surface to signal elevation */
+  --primary-soft: #2a2f52;
+  --primary-soft-fg: #c7d2fe;
+
+  /* Remap Tailwind's gray scale so existing gray utilities read correctly on
+     dark surfaces. Light usages (50–100 = surfaces/hovers, 200–300 = borders)
+     become dark; dark usages (400–500 = secondary text, 700–900 = primary
+     text) become light. All text pairings clear WCAG AA on #121212/#1e1e1e. */
+  --color-gray-50: #232323;
+  --color-gray-100: #2a2a2a;
+  --color-gray-200: #333333;
+  --color-gray-300: #404040;
+  --color-gray-400: #8a8a8a;
+  --color-gray-500: #a0a0a0;
+  --color-gray-600: #b0b0b0;
+  --color-gray-700: #cfcfcf;
+  --color-gray-800: #dcdcdc;
+  --color-gray-900: #e1e1e1;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-fg: var(--primary-soft-fg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Smooth, non-jarring transition when toggling themes. */
+*,
+::before,
+::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease,
+    color 0.2s ease, fill 0.2s ease;
 }
 
 body {

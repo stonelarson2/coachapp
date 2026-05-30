@@ -244,8 +244,8 @@ function OptionCard({
       className={cn(
         "rounded-lg border p-3 text-left transition",
         selected
-          ? "border-indigo-600 bg-indigo-50"
-          : "border-gray-200 bg-white hover:border-indigo-300",
+          ? "border-indigo-600 bg-primary-soft"
+          : "border-gray-200 bg-surface hover:border-indigo-300",
       )}
     >
       <div className="flex items-center justify-between">
