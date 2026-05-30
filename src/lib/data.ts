@@ -163,6 +163,34 @@ export function useFoodLog(userId: string | undefined, date: string) {
   return { entries, loading };
 }
 
+/** Realtime food log entries for a user from `startDate` (inclusive) onward. */
+export function useFoodLogRange(userId: string | undefined, startDate: string) {
+  const [entries, setEntries] = React.useState<FoodLogEntry[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!userId) return;
+    setLoading(true);
+    const q = query(
+      collection(getDb(), "foodLogs"),
+      where("userId", "==", userId),
+      where("date", ">=", startDate),
+      orderBy("date", "asc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setEntries(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as FoodLogEntry));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [userId, startDate]);
+
+  return { entries, loading };
+}
+
 export interface FoodLogInput {
   meal: MealType;
   name: string;
