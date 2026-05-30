@@ -40,6 +40,9 @@ serviceAccount*.json
 # vercel
 .vercel
 
+# claude code local settings (per-user; skills under .claude/skills are committed)
+.claude/settings.local.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

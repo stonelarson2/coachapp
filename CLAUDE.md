@@ -46,6 +46,19 @@ npm run lint       # eslint
 `users/{uid}` (role, profile, goal, calorieTarget, macroTargets, meeting, start/currentWeightKg, inviteCode/coachId) ·
 `weightEntries` · `foodLogs` · `photos` · `messages` · `insights`. Types in `src/lib/types.ts`.
 
+## Project skills
+
+Installed under `.claude/skills/` (project-local; load on a fresh Claude Code session).
+Both were added via `npx claude-code-templates@latest --skill <path>` from aitmpl.com (a
+third-party community source) and include Python helper scripts.
+
+- **`senior-frontend`** — frontend dev toolkit for React/Next.js/TypeScript/Tailwind:
+  component scaffolding, bundle analysis, performance optimization, and UI best-practice
+  references. Use when building/refactoring frontend features or reviewing frontend code.
+- **`ui-design-system`** — design-system toolkit: design token generation (colors,
+  typography, spacing), responsive calculations, accessibility, and dev-handoff docs.
+  Use when establishing visual consistency or generating design tokens.
+
 ## Environment note
 
 `H:\coaching` required an explicit NTFS Modify grant for the user (the Claude session runs
