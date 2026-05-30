@@ -63,6 +63,8 @@ export interface UserDoc {
   /** Denormalized weight snapshots (kg) for fast dashboard rendering. */
   startWeightKg?: number;
   currentWeightKg?: number;
+  /** True for the seeded demo client created via "Load example client". */
+  isExample?: boolean;
   createdAt: number; // epoch ms
 }
 
