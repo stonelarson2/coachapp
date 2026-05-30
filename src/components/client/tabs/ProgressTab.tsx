@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import { useWorkspace } from "../context";
+import { useTheme } from "@/context/ThemeContext";
 import { useFoodLogRange, useWeightEntries } from "@/lib/data";
 import {
   buildDailySeries,
@@ -35,8 +36,26 @@ function shortDate(iso: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+/** Recharts colors that adapt to the active theme. */
+function chartTheme(dark: boolean) {
+  return {
+    axis: dark ? "#a0a0a0" : "#6b7280",
+    grid: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
+    tooltip: {
+      backgroundColor: dark ? "#2a2a2a" : "#ffffff",
+      border: `1px solid ${dark ? "#404040" : "#e5e7eb"}`,
+      borderRadius: 8,
+      color: dark ? "#e1e1e1" : "#212529",
+    } as React.CSSProperties,
+    tooltipItem: { color: dark ? "#e1e1e1" : "#212529" } as React.CSSProperties,
+    tooltipLabel: { color: dark ? "#e1e1e1" : "#212529" } as React.CSSProperties,
+  };
+}
+
 export function ProgressTab() {
   const { target, unit } = useWorkspace();
+  const { resolved } = useTheme();
+  const ct = chartTheme(resolved === "dark");
   const { entries: weights } = useWeightEntries(target.uid);
   const start = daysAgoISO(WINDOW_DAYS - 1);
   const { entries: foods } = useFoodLogRange(target.uid, start);
@@ -114,10 +133,14 @@ export function ProgressTab() {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={weightData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis domain={["auto", "auto"]} tick={{ fontSize: 12 }} />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                  <XAxis dataKey="date" stroke={ct.axis} tick={{ fontSize: 12, fill: ct.axis }} />
+                  <YAxis domain={["auto", "auto"]} stroke={ct.axis} tick={{ fontSize: 12, fill: ct.axis }} />
+                  <Tooltip
+                    contentStyle={ct.tooltip}
+                    itemStyle={ct.tooltipItem}
+                    labelStyle={ct.tooltipLabel}
+                  />
                   <Line
                     type="monotone"
                     dataKey="weight"
@@ -141,10 +164,15 @@ export function ProgressTab() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={calorieData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                <XAxis dataKey="date" stroke={ct.axis} tick={{ fontSize: 11, fill: ct.axis }} />
+                <YAxis stroke={ct.axis} tick={{ fontSize: 12, fill: ct.axis }} />
+                <Tooltip
+                  cursor={{ fill: ct.grid }}
+                  contentStyle={ct.tooltip}
+                  itemStyle={ct.tooltipItem}
+                  labelStyle={ct.tooltipLabel}
+                />
                 <Bar dataKey="calories" fill="#6366f1" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -177,7 +205,11 @@ export function ProgressTab() {
                         <Cell key={m.name} fill={m.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip
+                      contentStyle={ct.tooltip}
+                      itemStyle={ct.tooltipItem}
+                      labelStyle={ct.tooltipLabel}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -194,11 +226,16 @@ export function ProgressTab() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={avgBars} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="g" tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="cal" orientation="right" tick={{ fontSize: 12 }} />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                  <XAxis dataKey="name" stroke={ct.axis} tick={{ fontSize: 12, fill: ct.axis }} />
+                  <YAxis yAxisId="g" stroke={ct.axis} tick={{ fontSize: 12, fill: ct.axis }} />
+                  <YAxis yAxisId="cal" orientation="right" stroke={ct.axis} tick={{ fontSize: 12, fill: ct.axis }} />
+                  <Tooltip
+                    cursor={{ fill: ct.grid }}
+                    contentStyle={ct.tooltip}
+                    itemStyle={ct.tooltipItem}
+                    labelStyle={ct.tooltipLabel}
+                  />
                   <Legend />
                   <Bar yAxisId="g" dataKey="grams" name="grams" fill="#6366f1" radius={[3, 3, 0, 0]} />
                   <Bar yAxisId="cal" dataKey="calories" name="kcal" fill="#f59e0b" radius={[3, 3, 0, 0]} />

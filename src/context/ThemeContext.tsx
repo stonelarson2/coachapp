@@ -35,13 +35,18 @@ function systemPrefersDark(): boolean {
   );
 }
 
-function applyTheme(theme: Theme) {
-  const dark = theme === "dark" || (theme === "system" && systemPrefersDark());
-  document.documentElement.classList.toggle("dark", dark);
+// External store for the OS color-scheme, so `resolved` updates reactively
+// without any setState-in-effect.
+function subscribeSystem(cb: () => void): () => void {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
 }
 
 interface ThemeContextValue {
   theme: Theme;
+  /** The theme actually in effect right now. */
+  resolved: "light" | "dark";
   setTheme: (t: Theme) => void;
 }
 
@@ -53,17 +58,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     getStored,
     () => "system",
   );
+  const systemDark = React.useSyncExternalStore(
+    subscribeSystem,
+    systemPrefersDark,
+    () => false,
+  );
+  const resolved: "light" | "dark" =
+    theme === "system" ? (systemDark ? "dark" : "light") : theme;
 
-  // Keep <html>.dark in sync with the preference, and follow the OS setting
-  // while "system" is selected. This only writes to the DOM (no setState).
+  // Keep <html>.dark in sync with the resolved theme. This only writes to the
+  // DOM (no setState).
   React.useEffect(() => {
-    applyTheme(theme);
-    if (theme !== "system") return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyTheme("system");
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, [theme]);
+    document.documentElement.classList.toggle("dark", resolved === "dark");
+  }, [resolved]);
 
   const setTheme = React.useCallback((t: Theme) => {
     try {
@@ -74,7 +81,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     listeners.forEach((l) => l());
   }, []);
 
-  const value = React.useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
+  const value = React.useMemo(
+    () => ({ theme, resolved, setTheme }),
+    [theme, resolved, setTheme],
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
