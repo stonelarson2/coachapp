@@ -92,7 +92,7 @@ export function AddClientDialog({
       onMouseDown={close}
     >
       <Card
-        className="w-full max-w-lg bg-elevated"
+        className="w-full max-w-lg bg-elevated max-h-[90dvh] overflow-y-auto"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">

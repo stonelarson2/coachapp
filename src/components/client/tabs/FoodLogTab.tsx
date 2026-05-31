@@ -279,7 +279,7 @@ function AddFoodForm({
     <form onSubmit={submit} className="rounded-lg bg-gray-50 p-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
         <Input
-          className="sm:col-span-2"
+          className="col-span-2 sm:col-span-2"
           placeholder="Food name"
           value={name}
           onChange={(e) => setName(e.target.value)}

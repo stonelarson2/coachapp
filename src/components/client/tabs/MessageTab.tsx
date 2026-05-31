@@ -41,7 +41,7 @@ export function MessageTab() {
   }
 
   return (
-    <Card className="flex h-[60vh] flex-col">
+    <Card className="flex h-[50svh] flex-col sm:h-[60vh]">
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {loading ? (
           <div className="flex justify-center pt-6">

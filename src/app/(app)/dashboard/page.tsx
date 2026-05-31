@@ -52,7 +52,7 @@ function DashboardInner() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -101,7 +101,7 @@ function DashboardInner() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:max-w-md">
+      <div className="grid grid-cols-2 gap-4 sm:max-w-sm">
         <Stat label="Total clients" value={loading ? "…" : clients.length} />
         <Stat
           label="Your invite code"
