@@ -71,6 +71,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /checkins/{id} {
+      allow read: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+      // Client submits their own check-in.
+      allow create: if isOwner(request.resource.data.userId);
+      // Client can edit their own; coach can update (e.g. add a reply).
+      allow update: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+    }
+
     match /messages/{id} {
       allow read: if isSignedIn()
         && (request.auth.uid == resource.data.coachId

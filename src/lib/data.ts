@@ -22,6 +22,8 @@ import {
 } from "firebase/storage";
 import { getDb, getStorageInstance } from "@/lib/firebase/client";
 import type {
+  CheckinDoc,
+  CheckinRatings,
   FoodLogEntry,
   InsightDoc,
   MealType,
@@ -373,6 +375,62 @@ export async function sendMessage(
     senderId,
     text,
     createdAt: Date.now(),
+  });
+}
+
+// ---- Weekly check-ins ----
+
+/** Realtime check-ins for a user, newest week first. */
+export function useCheckins(userId: string | undefined) {
+  const [checkins, setCheckins] = React.useState<CheckinDoc[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!userId) return;
+    const q = query(
+      collection(getDb(), "checkins"),
+      where("userId", "==", userId),
+      orderBy("weekOf", "desc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setCheckins(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CheckinDoc));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [userId]);
+
+  return { checkins, loading };
+}
+
+export interface CheckinInput {
+  weekOf: string;
+  weightKg?: number;
+  ratings: CheckinRatings;
+  notes: string;
+}
+
+export async function submitCheckin(
+  userId: string,
+  coachId: string | undefined,
+  input: CheckinInput,
+): Promise<void> {
+  await addDoc(collection(getDb(), "checkins"), {
+    userId,
+    ...(coachId ? { coachId } : {}),
+    ...input,
+    createdAt: Date.now(),
+  });
+}
+
+/** Coach replies to a client's check-in. */
+export async function replyToCheckin(id: string, reply: string): Promise<void> {
+  await updateDoc(doc(getDb(), "checkins", id), {
+    coachReply: reply,
+    coachRepliedAt: Date.now(),
   });
 }
 

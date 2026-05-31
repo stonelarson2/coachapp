@@ -136,6 +136,31 @@ export interface MessageDoc {
   createdAt: number;
 }
 
+/** Weekly check-in 1-5 self-ratings. */
+export interface CheckinRatings {
+  nutrition: number;
+  training: number;
+  sleep: number;
+  energy: number;
+  mood: number;
+  stress: number;
+}
+
+/** checkins/{id} — a client's weekly check-in, reviewed by their coach. */
+export interface CheckinDoc {
+  id: string;
+  userId: string;
+  coachId?: string;
+  /** ISO date (Monday) identifying the week. */
+  weekOf: string;
+  weightKg?: number;
+  ratings: CheckinRatings;
+  notes: string;
+  coachReply?: string;
+  coachRepliedAt?: number;
+  createdAt: number;
+}
+
 export type InsightPeriod = "week" | "2weeks" | "month";
 
 /** insights/{id} */

@@ -12,6 +12,7 @@ import { ProgressTab } from "./tabs/ProgressTab";
 import { FoodLogTab } from "./tabs/FoodLogTab";
 import { NutritionTab } from "./tabs/NutritionTab";
 import { MeetingTab } from "./tabs/MeetingTab";
+import { CheckinTab } from "./tabs/CheckinTab";
 import { MessageTab } from "./tabs/MessageTab";
 import { PhotoTab } from "./tabs/PhotoTab";
 import { InsightTab } from "./tabs/InsightTab";
@@ -42,6 +43,7 @@ export function ClientWorkspace({ userId }: { userId: string }) {
   const tabs: TabDef[] = [
     { id: "overview", label: "Overview", content: <OverviewTab /> },
     { id: "progress", label: "Progress", content: <ProgressTab /> },
+    { id: "checkin", label: "Check-ins", content: <CheckinTab /> },
     { id: "detail", label: "Client Detail", content: <ClientDetailTab /> },
     { id: "food", label: "Food Log", content: <FoodLogTab /> },
     { id: "nutrition", label: "Nutrition Plan", content: <NutritionTab /> },
