@@ -4,7 +4,7 @@ import * as React from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme, type Theme } from "@/context/ThemeContext";
 import { updateUserFields } from "@/lib/data";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@/components/ui";
 
 const THEME_OPTIONS: { value: Theme; label: string }[] = [
   { value: "light", label: "Light" },
@@ -39,8 +39,8 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Account</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <Row label="Name" value={profile.name} />
+        <CardContent className="space-y-3 text-sm">
+          <NameEditor uid={profile.uid} current={profile.name} />
           <Row label="Email" value={profile.email} />
           <Row label="Role" value={profile.role} capitalize />
         </CardContent>
@@ -120,6 +120,71 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function NameEditor({ uid, current }: { uid: string; current: string }) {
+  const [editing, setEditing] = React.useState(false);
+  const [value, setValue] = React.useState(current);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  React.useEffect(() => setValue(current), [current]);
+
+  async function save() {
+    const name = value.trim();
+    if (!name) {
+      setError("Name can't be empty.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await updateUserFields(uid, { name });
+      setEditing(false);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-gray-500">Name</span>
+        <span className="flex items-center gap-2">
+          <span className="text-gray-900">{current}</span>
+          <button
+            onClick={() => { setValue(current); setEditing(true); }}
+            className="text-xs font-medium text-indigo-600 hover:underline"
+          >
+            Edit
+          </button>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <span className="text-gray-500">Name</span>
+      <div className="flex items-center gap-2">
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Your name"
+          autoFocus
+        />
+        <Button size="sm" onClick={save} disabled={busy || !value.trim() || value.trim() === current}>
+          {busy ? "Saving…" : "Save"}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => { setEditing(false); setError(""); }} disabled={busy}>
+          Cancel
+        </Button>
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }
