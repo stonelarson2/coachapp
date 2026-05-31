@@ -43,6 +43,25 @@ export interface MeetingSettings {
   lastRemindedAt?: number; // epoch ms
 }
 
+export type PlanKey = "3mo" | "6mo" | "1yr";
+export type PayKind = "upfront" | "installment";
+export type BillingStatus = "none" | "pending" | "active" | "past_due" | "canceled" | "completed";
+
+/** A client's billing state, updated server-side from Stripe webhooks. */
+export interface Billing {
+  status: BillingStatus;
+  planKey?: PlanKey;
+  payKind?: PayKind;
+  stripeCustomerId?: string;
+  /** Subscription id for installment plans. */
+  stripeSubscriptionId?: string;
+  /** ISO date the current access period ends (installments) or plan ends. */
+  currentPeriodEnd?: string;
+  /** Epoch ms of the last successful payment. */
+  lastPaymentAt?: number;
+  updatedAt?: number;
+}
+
 /** A user document stored at users/{uid}. */
 export interface UserDoc {
   uid: string;
@@ -58,6 +77,8 @@ export interface UserDoc {
   calorieTarget?: number;
   macroTargets?: MacroTargets;
   meeting?: MeetingSettings;
+  /** Billing state for clients (set server-side via Stripe webhooks). */
+  billing?: Billing;
   /** Preferred display unit for weight in the UI. */
   weightUnit?: "kg" | "lb";
   /** Denormalized weight snapshots (kg) for fast dashboard rendering. */
