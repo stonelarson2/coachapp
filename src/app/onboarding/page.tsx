@@ -44,8 +44,8 @@ export default function OnboardingPage() {
       </div>
 
       {step === "role" && <RoleStep onChoose={setStep} />}
-      {step === "coach" && <CoachStep onBack={() => setStep("role")} />}
-      {step === "client" && <ClientStep onBack={() => setStep("role")} />}
+      {step === "coach" && <CoachStep name={user.displayName ?? ""} onBack={() => setStep("role")} />}
+      {step === "client" && <ClientStep name={user.displayName ?? ""} onBack={() => setStep("role")} />}
     </main>
   );
 }
@@ -79,7 +79,7 @@ function RoleStep({ onChoose }: { onChoose: (s: Step) => void }) {
   );
 }
 
-function CoachStep({ onBack }: { onBack: () => void }) {
+function CoachStep({ name, onBack }: { name: string; onBack: () => void }) {
   const router = useRouter();
   const [coachPassword, setCoachPassword] = React.useState("");
   const [error, setError] = React.useState("");
@@ -90,7 +90,7 @@ function CoachStep({ onBack }: { onBack: () => void }) {
     setError("");
     setBusy(true);
     try {
-      await authedFetch("/api/onboarding", { role: "coach", coachPassword });
+      await authedFetch("/api/onboarding", { role: "coach", name, coachPassword });
       router.replace("/dashboard");
     } catch (err) {
       setError((err as Error).message);
@@ -129,7 +129,7 @@ function CoachStep({ onBack }: { onBack: () => void }) {
   );
 }
 
-function ClientStep({ onBack }: { onBack: () => void }) {
+function ClientStep({ name, onBack }: { name: string; onBack: () => void }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -163,6 +163,7 @@ function ClientStep({ onBack }: { onBack: () => void }) {
       };
       await authedFetch("/api/onboarding", {
         role: "client",
+        name,
         inviteCode: inviteCode.trim().toUpperCase(),
         profile,
         goal,

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { verifyRequest } from "@/lib/server-auth";
 import { calcCalorieTarget, calcMacroTargets } from "@/lib/nutrition";
 import type { Goal, Profile, Role, UserDoc } from "@/lib/types";
@@ -57,7 +57,16 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => ({}))) as OnboardingBody;
-  const name = (body.name || decoded.name || "").toString().trim() || "Unnamed";
+  // Prefer the name the user typed at signup (sent in the body). The ID token's
+  // `decoded.name` is often stale right after signup (minted before displayName
+  // was set), so fall back to the authoritative displayName from the Admin SDK
+  // before ever defaulting to "Unnamed".
+  let name = (body.name || decoded.name || "").toString().trim();
+  if (!name) {
+    const authUser = await getAdminAuth().getUser(uid).catch(() => null);
+    name = (authUser?.displayName || "").trim();
+  }
+  if (!name) name = "Unnamed";
   const email = (decoded.email || "").toString();
   const now = Date.now();
 
