@@ -11,6 +11,7 @@ import {
   type FoodLogInput,
 } from "@/lib/data";
 import { parseMfpCsv } from "@/lib/mfpImport";
+import { FoodAiEstimator } from "./FoodAiEstimator";
 import { addDays, formatDatePretty, todayISO } from "@/lib/units";
 import type { FoodLogEntry, MealType } from "@/lib/types";
 import { Button, Card, CardContent, Input, Stat } from "@/components/ui";
@@ -137,6 +138,9 @@ export function FoodLogTab() {
           Next →
         </Button>
       </div>
+
+      {/* AI macro estimator (photo scan + text describe) */}
+      <FoodAiEstimator userId={target.uid} date={date} />
 
       {/* Daily summary */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
