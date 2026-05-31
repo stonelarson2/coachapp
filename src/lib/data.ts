@@ -12,6 +12,7 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import {
   deleteObject,
@@ -227,6 +228,23 @@ export async function addFoodLog(
 
 export async function deleteFoodLog(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), "foodLogs", id));
+}
+
+export async function importFoodLogs(
+  userId: string,
+  rows: import("./mfpImport").MfpRow[],
+): Promise<void> {
+  const db = getDb();
+  // Firestore batches are capped at 500 writes.
+  const CHUNK = 500;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    for (const row of rows.slice(i, i + CHUNK)) {
+      const ref = doc(collection(db, "foodLogs"));
+      batch.set(ref, { userId, ...row, createdAt: Date.now() });
+    }
+    await batch.commit();
+  }
 }
 
 // ---- Photos ----

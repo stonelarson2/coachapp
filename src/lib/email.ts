@@ -1,0 +1,58 @@
+// Server-only — sends transactional emails via Resend.
+// Gracefully no-ops if RESEND_API_KEY is not configured.
+
+import { Resend } from "resend";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://mycoachfit.xyz";
+const FROM = process.env.RESEND_FROM_EMAIL ?? "CoachFit <noreply@mycoachfit.xyz>";
+
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
+
+export async function sendClientInviteEmail({
+  coachName,
+  clientName,
+  clientEmail,
+  temporaryPassword,
+}: {
+  coachName: string;
+  clientName: string;
+  clientEmail: string;
+  temporaryPassword: string;
+}): Promise<void> {
+  const resend = getResend();
+  if (!resend) return; // not configured — skip silently
+
+  const loginUrl = `${APP_URL}/login`;
+
+  await resend.emails.send({
+    from: FROM,
+    to: clientEmail,
+    subject: `${coachName} added you to CoachFit`,
+    html: `
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;color:#111">
+  <h2 style="margin-bottom:4px">Welcome to CoachFit</h2>
+  <p style="color:#555;margin-top:0">Your coach <strong>${coachName}</strong> has set up your account.</p>
+
+  <div style="background:#f5f5f5;border-radius:8px;padding:20px;margin:24px 0">
+    <p style="margin:0 0 8px 0;font-size:14px;color:#555">Your login details</p>
+    <p style="margin:0 0 4px 0"><strong>Email:</strong> ${clientEmail}</p>
+    <p style="margin:0"><strong>Temporary password:</strong> <code style="background:#e5e5e5;padding:2px 6px;border-radius:4px">${temporaryPassword}</code></p>
+  </div>
+
+  <a href="${loginUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">
+    Log in to CoachFit
+  </a>
+
+  <p style="margin-top:24px;font-size:13px;color:#888">
+    After logging in you can change your password in Settings. If you have any questions, reply to your coach directly.
+  </p>
+</body>
+</html>`,
+  });
+}

@@ -3,6 +3,7 @@ import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { verifyRequest } from "@/lib/server-auth";
 import { calcCalorieTarget, calcMacroTargets } from "@/lib/nutrition";
 import { addDays, todayISO } from "@/lib/units";
+import { sendClientInviteEmail } from "@/lib/email";
 import type { ActivityLevel, Gender, Goal, Profile, UserDoc } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -11,9 +12,13 @@ interface CreateClientBody {
   mode?: "manual" | "example";
   name?: string;
   email?: string;
-  password?: string;
   profile?: Profile;
   goal?: Goal;
+}
+
+function generatePassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
 const ACTIVITY_LEVELS: ActivityLevel[] = [
@@ -87,18 +92,12 @@ export async function POST(req: Request) {
   } else {
     name = (body.name || "").trim();
     email = (body.email || "").trim().toLowerCase();
-    password = body.password || "";
+    password = generatePassword();
     if (!name) {
       return NextResponse.json({ error: "A name is required" }, { status: 400 });
     }
     if (!email) {
       return NextResponse.json({ error: "An email is required" }, { status: 400 });
-    }
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 },
-      );
     }
     if (!isValidProfile(body.profile)) {
       return NextResponse.json(
@@ -166,6 +165,15 @@ export async function POST(req: Request) {
   }
 
   await batch.commit();
+
+  if (!isExample) {
+    await sendClientInviteEmail({
+      coachName: coach.name,
+      clientName: name,
+      clientEmail: email,
+      temporaryPassword: password,
+    });
+  }
 
   return NextResponse.json({
     ok: true,

@@ -5,10 +5,12 @@ import { useWorkspace } from "../context";
 import {
   addFoodLog,
   deleteFoodLog,
+  importFoodLogs,
   sumMacros,
   useFoodLog,
   type FoodLogInput,
 } from "@/lib/data";
+import { parseMfpCsv } from "@/lib/mfpImport";
 import { addDays, formatDatePretty, todayISO } from "@/lib/units";
 import type { FoodLogEntry, MealType } from "@/lib/types";
 import { Button, Card, CardContent, Input, Stat } from "@/components/ui";
@@ -24,14 +26,90 @@ export function FoodLogTab() {
   const { target } = useWorkspace();
   const [date, setDate] = React.useState(todayISO());
   const { entries } = useFoodLog(target.uid, date);
+  const [importState, setImportState] = React.useState<
+    | { phase: "idle" }
+    | { phase: "preview"; rows: import("@/lib/mfpImport").MfpRow[]; skipped: number }
+    | { phase: "importing" }
+    | { phase: "done"; count: number }
+    | { phase: "error"; message: string }
+  >({ phase: "idle" });
+  const fileRef = React.useRef<HTMLInputElement>(null);
 
   const totals = sumMacros(entries);
   const calTarget = target.calorieTarget;
   const macroTarget = target.macroTargets;
   const isToday = date === todayISO();
 
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const { rows, skipped } = parseMfpCsv(text);
+      if (rows.length === 0) {
+        setImportState({ phase: "error", message: "No food entries found in this CSV." });
+      } else {
+        setImportState({ phase: "preview", rows, skipped });
+      }
+    } catch (err) {
+      setImportState({ phase: "error", message: String(err) });
+    }
+    e.target.value = "";
+  }
+
+  async function confirmImport() {
+    if (importState.phase !== "preview") return;
+    const { rows } = importState;
+    setImportState({ phase: "importing" });
+    try {
+      await importFoodLogs(target.uid, rows);
+      setImportState({ phase: "done", count: rows.length });
+    } catch (err) {
+      setImportState({ phase: "error", message: String(err) });
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* MFP import banner */}
+      {importState.phase === "idle" && (
+        <div className="flex items-center justify-between rounded-lg border border-dashed border-gray-300 bg-surface px-4 py-3">
+          <span className="text-sm text-gray-500">Import from MyFitnessPal CSV</span>
+          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+          <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
+            Upload CSV
+          </Button>
+        </div>
+      )}
+      {importState.phase === "preview" && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+          <p className="text-sm font-medium text-indigo-900">
+            Ready to import {importState.rows.length} entries
+            {importState.skipped > 0 && ` (${importState.skipped} summary rows skipped)`}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" onClick={confirmImport}>Import</Button>
+            <Button size="sm" variant="secondary" onClick={() => setImportState({ phase: "idle" })}>Cancel</Button>
+          </div>
+        </div>
+      )}
+      {importState.phase === "importing" && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+          Importing…
+        </div>
+      )}
+      {importState.phase === "done" && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          Imported {importState.count} entries successfully.{" "}
+          <button className="underline" onClick={() => setImportState({ phase: "idle" })}>Dismiss</button>
+        </div>
+      )}
+      {importState.phase === "error" && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {importState.message}{" "}
+          <button className="underline" onClick={() => setImportState({ phase: "idle" })}>Dismiss</button>
+        </div>
+      )}
       {/* Day navigation */}
       <div className="flex items-center justify-between">
         <Button variant="secondary" size="sm" onClick={() => setDate(addDays(date, -1))}>

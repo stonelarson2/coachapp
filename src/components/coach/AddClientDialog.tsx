@@ -21,7 +21,6 @@ export function AddClientDialog({
 
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
   const [age, setAge] = React.useState("");
   const [gender, setGender] = React.useState<Gender>("male");
   const [heightFt, setHeightFt] = React.useState("");
@@ -34,7 +33,6 @@ export function AddClientDialog({
   function reset() {
     setName("");
     setEmail("");
-    setPassword("");
     setAge("");
     setGender("male");
     setHeightFt("");
@@ -73,7 +71,6 @@ export function AddClientDialog({
         mode: "manual",
         name: name.trim(),
         email: email.trim(),
-        password,
         profile,
         goal,
       });
@@ -122,29 +119,16 @@ export function AddClientDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="ac-email">Email (login)</Label>
-              <Input
-                id="ac-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@example.com"
-              />
-            </div>
-            <div>
-              <Label htmlFor="ac-pw">Temporary password</Label>
-              <Input
-                id="ac-pw"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="min. 6 characters"
-              />
-            </div>
+          <div>
+            <Label htmlFor="ac-email">Email — an invite will be sent automatically</Label>
+            <Input
+              id="ac-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="client@example.com"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
