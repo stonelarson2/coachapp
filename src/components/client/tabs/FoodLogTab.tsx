@@ -12,6 +12,7 @@ import {
 } from "@/lib/data";
 import { parseMfpCsv } from "@/lib/mfpImport";
 import { FoodAiEstimator } from "./FoodAiEstimator";
+import { FoodSearch } from "./FoodSearch";
 import { addDays, formatDatePretty, todayISO } from "@/lib/units";
 import type { FoodLogEntry, MealType } from "@/lib/types";
 import { Button, Card, CardContent, Input, Stat } from "@/components/ui";
@@ -138,6 +139,9 @@ export function FoodLogTab() {
           Next →
         </Button>
       </div>
+
+      {/* Food database search + barcode scan */}
+      <FoodSearch userId={target.uid} date={date} />
 
       {/* AI macro estimator (photo scan + text describe) */}
       <FoodAiEstimator userId={target.uid} date={date} />

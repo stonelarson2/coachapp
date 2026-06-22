@@ -161,6 +161,32 @@ export interface CheckinDoc {
   createdAt: number;
 }
 
+/** A named serving for a food (e.g. "1 cup" = 240 g). */
+export interface FoodServing {
+  label: string;
+  grams: number;
+}
+
+/**
+ * A normalized food returned by the food-database search (USDA FoodData Central
+ * or Open Food Facts). Macros are always expressed per 100 g so the client can
+ * scale to any amount; `servings` offers common portions when available.
+ */
+export interface FoodItem {
+  source: "usda" | "off";
+  /** fdcId (USDA) or barcode/code (Open Food Facts). */
+  sourceId: string;
+  name: string;
+  brand?: string;
+  per100g: {
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+  };
+  servings: FoodServing[];
+}
+
 export type InsightPeriod = "week" | "2weeks" | "month";
 
 /** insights/{id} */
