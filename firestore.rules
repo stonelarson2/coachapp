@@ -59,6 +59,13 @@ service cloud.firestore {
       allow update, delete: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
     }
 
+    match /favorites/{id} {
+      allow read: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+        || isCoachOf(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
+    }
+
     match /photos/{id} {
       allow read: if isOwner(resource.data.userId) || isCoachOf(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);

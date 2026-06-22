@@ -7,6 +7,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -24,6 +25,7 @@ import { getDb, getStorageInstance } from "@/lib/firebase/client";
 import type {
   CheckinDoc,
   CheckinRatings,
+  FavoriteFood,
   FoodLogEntry,
   InsightDoc,
   MealType,
@@ -247,6 +249,83 @@ export async function importFoodLogs(
     }
     await batch.commit();
   }
+}
+
+// ---- Favorites & quick add ----
+
+/** A lightweight food shape used for quick-add chips (recents + favorites). */
+export interface QuickFood {
+  name: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+/** Realtime list of a user's favorite foods, newest first. */
+export function useFavorites(userId: string | undefined) {
+  const [favorites, setFavorites] = React.useState<FavoriteFood[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!userId) return;
+    const q = query(collection(getDb(), "favorites"), where("userId", "==", userId));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as FavoriteFood);
+        list.sort((a, b) => b.createdAt - a.createdAt);
+        setFavorites(list);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [userId]);
+
+  return { favorites, loading };
+}
+
+/** Add a favorite, skipping if one with the same name already exists. */
+export async function addFavorite(userId: string, food: QuickFood): Promise<void> {
+  const db = getDb();
+  const existing = await getDocs(
+    query(
+      collection(db, "favorites"),
+      where("userId", "==", userId),
+      where("name", "==", food.name),
+    ),
+  );
+  if (!existing.empty) return;
+  await addDoc(collection(db, "favorites"), {
+    userId,
+    ...food,
+    createdAt: Date.now(),
+  });
+}
+
+export async function removeFavorite(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), "favorites", id));
+}
+
+/**
+ * Derive a user's recently-logged foods from food-log history: dedupe by name
+ * (keeping the most recent), newest first, capped at `max`.
+ */
+export function recentFoods(entries: FoodLogEntry[], max = 12): QuickFood[] {
+  const byName = new Map<string, FoodLogEntry>();
+  for (const e of [...entries].sort((a, b) => b.createdAt - a.createdAt)) {
+    const key = e.name.trim().toLowerCase();
+    if (!byName.has(key)) byName.set(key, e);
+    if (byName.size >= max) break;
+  }
+  return Array.from(byName.values()).map((e) => ({
+    name: e.name,
+    calories: e.calories,
+    proteinG: e.proteinG,
+    carbsG: e.carbsG,
+    fatG: e.fatG,
+  }));
 }
 
 // ---- Photos ----

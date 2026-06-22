@@ -24,10 +24,13 @@ interface SearchResponse {
 export function FoodSearch({
   userId,
   date,
+  meal,
   onAdded,
 }: {
   userId: string;
   date: string;
+  /** When set, items are added to this meal and the meal picker is hidden. */
+  meal?: MealType;
   onAdded?: () => void;
 }) {
   const [query, setQuery] = React.useState("");
@@ -141,6 +144,7 @@ export function FoodSearch({
                 <FoodAmountEditor
                   food={item}
                   cal={cal}
+                  fixedMeal={meal}
                   onAdd={async (entry) => {
                     await addFoodLog(userId, date, entry);
                     setSelected(null);
@@ -167,10 +171,12 @@ export function FoodSearch({
 function FoodAmountEditor({
   food,
   cal,
+  fixedMeal,
   onAdd,
 }: {
   food: FoodItem;
   cal: string;
+  fixedMeal?: MealType;
   onAdd: (entry: {
     meal: MealType;
     name: string;
@@ -187,7 +193,7 @@ function FoodAmountEditor({
   );
   const [count, setCount] = React.useState("1");
   const [grams, setGrams] = React.useState("100");
-  const [meal, setMeal] = React.useState<MealType>("breakfast");
+  const [meal, setMeal] = React.useState<MealType>(fixedMeal ?? "breakfast");
   const [busy, setBusy] = React.useState(false);
 
   const isGrams = portion === GRAMS;
@@ -261,13 +267,15 @@ function FoodAmountEditor({
             aria-label="Number of servings"
           />
         )}
-        <Select value={meal} onChange={(e) => setMeal(e.target.value as MealType)}>
-          {MEALS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </Select>
+        {!fixedMeal && (
+          <Select value={meal} onChange={(e) => setMeal(e.target.value as MealType)}>
+            {MEALS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
       <div className="mt-2 flex items-center justify-between">

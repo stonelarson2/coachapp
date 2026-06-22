@@ -3,16 +3,20 @@
 import * as React from "react";
 import { useWorkspace } from "../context";
 import {
+  addFavorite,
   addFoodLog,
   deleteFoodLog,
   importFoodLogs,
+  removeFavorite,
   sumMacros,
+  useFavorites,
   useFoodLog,
   type FoodLogInput,
 } from "@/lib/data";
 import { parseMfpCsv } from "@/lib/mfpImport";
 import { FoodAiEstimator } from "./FoodAiEstimator";
 import { FoodSearch } from "./FoodSearch";
+import { QuickAddFoods } from "./QuickAddFoods";
 import { addDays, energyLabel, formatDatePretty, todayISO } from "@/lib/units";
 import type { FoodLogEntry, MealType } from "@/lib/types";
 import { Button, Card, CardContent, Input, Stat } from "@/components/ui";
@@ -29,6 +33,11 @@ export function FoodLogTab() {
   const cal = energyLabel(energyUnit);
   const [date, setDate] = React.useState(todayISO());
   const { entries } = useFoodLog(target.uid, date);
+  const { favorites } = useFavorites(target.uid);
+  const favByName = React.useMemo(
+    () => new Map(favorites.map((f) => [f.name.trim().toLowerCase(), f.id])),
+    [favorites],
+  );
   const [importState, setImportState] = React.useState<
     | { phase: "idle" }
     | { phase: "preview"; rows: import("@/lib/mfpImport").MfpRow[]; skipped: number }
@@ -141,8 +150,8 @@ export function FoodLogTab() {
         </Button>
       </div>
 
-      {/* Food database search + barcode scan */}
-      <FoodSearch userId={target.uid} date={date} />
+      {/* One-tap re-add of favorites + recently logged foods */}
+      <QuickAddFoods userId={target.uid} date={date} />
 
       {/* AI macro estimator (photo scan + text describe) */}
       <FoodAiEstimator userId={target.uid} date={date} />
@@ -181,6 +190,7 @@ export function FoodLogTab() {
             userId={target.uid}
             date={date}
             cal={cal}
+            favByName={favByName}
             entries={entries.filter((e) => e.meal === m.id)}
           />
         ))}
@@ -195,6 +205,7 @@ function MealSection({
   userId,
   date,
   cal,
+  favByName,
   entries,
 }: {
   meal: MealType;
@@ -202,10 +213,27 @@ function MealSection({
   userId: string;
   date: string;
   cal: string;
+  favByName: Map<string, string>;
   entries: FoodLogEntry[];
 }) {
   const [adding, setAdding] = React.useState(false);
+  const [manual, setManual] = React.useState(false);
   const mealCals = entries.reduce((s, e) => s + e.calories, 0);
+
+  function toggleFavorite(e: FoodLogEntry) {
+    const favId = favByName.get(e.name.trim().toLowerCase());
+    if (favId) {
+      removeFavorite(favId);
+    } else {
+      addFavorite(userId, {
+        name: e.name,
+        calories: e.calories,
+        proteinG: e.proteinG,
+        carbsG: e.carbsG,
+        fatG: e.fatG,
+      });
+    }
+  }
 
   return (
     <Card>
@@ -218,41 +246,67 @@ function MealSection({
             </span>
           </div>
           <Button size="sm" variant="ghost" onClick={() => setAdding((v) => !v)}>
-            {adding ? "Cancel" : "+ Add"}
+            {adding ? "Done" : "+ Add"}
           </Button>
         </div>
 
         {entries.length > 0 && (
           <ul className="mb-2 divide-y divide-gray-100">
-            {entries.map((e) => (
-              <li key={e.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-gray-900">{e.name}</span>
-                <span className="flex items-center gap-3 text-gray-500">
-                  <span>{Math.round(e.calories)} {cal}</span>
-                  <span className="text-xs">
-                    P{Math.round(e.proteinG)} C{Math.round(e.carbsG)} F{Math.round(e.fatG)}
+            {entries.map((e) => {
+              const isFav = favByName.has(e.name.trim().toLowerCase());
+              return (
+                <li key={e.id} className="flex items-center justify-between py-2 text-sm">
+                  <span className="text-gray-900">{e.name}</span>
+                  <span className="flex items-center gap-3 text-gray-500">
+                    <span>{Math.round(e.calories)} {cal}</span>
+                    <span className="text-xs">
+                      P{Math.round(e.proteinG)} C{Math.round(e.carbsG)} F{Math.round(e.fatG)}
+                    </span>
+                    <button
+                      onClick={() => toggleFavorite(e)}
+                      className={isFav ? "text-amber-500" : "text-gray-300 hover:text-amber-500"}
+                      aria-label={isFav ? "Remove favorite" : "Save as favorite"}
+                      title={isFav ? "Remove favorite" : "Save as favorite"}
+                    >
+                      {isFav ? "★" : "☆"}
+                    </button>
+                    <button
+                      onClick={() => deleteFoodLog(e.id)}
+                      className="text-gray-300 hover:text-red-500"
+                      aria-label="Delete"
+                    >
+                      ✕
+                    </button>
                   </span>
-                  <button
-                    onClick={() => deleteFoodLog(e.id)}
-                    className="text-gray-300 hover:text-red-500"
-                    aria-label="Delete"
-                  >
-                    ✕
-                  </button>
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
 
         {adding && (
-          <AddFoodForm
-            cal={cal}
-            onAdd={async (input) => {
-              await addFoodLog(userId, date, { ...input, meal });
-              setAdding(false);
-            }}
-          />
+          <div className="space-y-3">
+            {/* Search the food database (USDA + Open Food Facts) or scan a barcode,
+                adding straight to this meal. */}
+            <FoodSearch userId={userId} date={date} meal={meal} />
+            {manual ? (
+              <AddFoodForm
+                cal={cal}
+                onAdd={async (input) => {
+                  await addFoodLog(userId, date, { ...input, meal });
+                  setManual(false);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setManual(true)}
+                className="text-xs font-medium text-indigo-600 hover:underline"
+              >
+                Or enter macros manually
+              </button>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

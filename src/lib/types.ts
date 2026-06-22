@@ -116,6 +116,18 @@ export interface FoodLogEntry {
   createdAt: number;
 }
 
+/** favorites/{id} — a food a user pinned for one-tap re-adding. */
+export interface FavoriteFood {
+  id: string;
+  userId: string;
+  name: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  createdAt: number;
+}
+
 /** photos/{id} */
 export interface PhotoDoc {
   id: string;
