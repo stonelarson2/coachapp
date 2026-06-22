@@ -6,6 +6,8 @@ import { downscaleImage, type EncodedImage } from "@/lib/image";
 import { addFoodLog } from "@/lib/data";
 import type { MealType } from "@/lib/types";
 import { Button, Input, Select } from "@/components/ui";
+import { energyLabel } from "@/lib/units";
+import { useWorkspace } from "../context";
 
 interface EstimatedItem {
   name: string;
@@ -38,6 +40,7 @@ export function FoodAiEstimator({
   date: string;
   onAdded?: () => void;
 }) {
+  const cal = energyLabel(useWorkspace().energyUnit);
   const [subMode, setSubMode] = React.useState<"photo" | "text">("photo");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -232,7 +235,7 @@ export function FoodAiEstimator({
                 <span className="flex-1 text-gray-900">
                   {it.name} <span className="text-gray-400">{it.quantity}</span>
                 </span>
-                <span className="text-gray-500">{Math.round(it.calories)} kcal</span>
+                <span className="text-gray-500">{Math.round(it.calories)} {cal}</span>
                 <span className="text-xs text-gray-400">
                   P{Math.round(it.proteinG)} C{Math.round(it.carbsG)} F{Math.round(it.fatG)}
                 </span>

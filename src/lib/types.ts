@@ -81,6 +81,8 @@ export interface UserDoc {
   billing?: Billing;
   /** Preferred display unit for weight in the UI. */
   weightUnit?: "kg" | "lb";
+  /** Preferred energy label in the UI ("cal" or "kcal"). Same number, label only. */
+  energyUnit?: "cal" | "kcal";
   /** Denormalized weight snapshots (kg) for fast dashboard rendering. */
   startWeightKg?: number;
   currentWeightKg?: number;

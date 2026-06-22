@@ -14,6 +14,8 @@ export interface WorkspaceCtx {
   isCoachView: boolean;
   /** Display unit chosen by the viewer. */
   unit: "kg" | "lb";
+  /** Energy label chosen by the viewer ("cal" or "kcal"). */
+  energyUnit: "cal" | "kcal";
 }
 
 const Ctx = React.createContext<WorkspaceCtx | undefined>(undefined);

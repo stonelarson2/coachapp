@@ -39,6 +39,7 @@ export function ClientWorkspace({ userId }: { userId: string }) {
 
   const isCoachView = profile.role === "coach";
   const unit = profile.weightUnit ?? "lb";
+  const energyUnit = profile.energyUnit ?? "cal";
 
   const tabs: TabDef[] = [
     { id: "overview", label: "Overview", content: <OverviewTab /> },
@@ -55,7 +56,7 @@ export function ClientWorkspace({ userId }: { userId: string }) {
 
   return (
     <WorkspaceProvider
-      value={{ target, viewerId: profile.uid, viewerRole: profile.role, isCoachView, unit }}
+      value={{ target, viewerId: profile.uid, viewerRole: profile.role, isCoachView, unit, energyUnit }}
     >
       <div className="space-y-4">
         {isCoachView && (

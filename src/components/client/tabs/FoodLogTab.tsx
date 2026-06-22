@@ -13,7 +13,7 @@ import {
 import { parseMfpCsv } from "@/lib/mfpImport";
 import { FoodAiEstimator } from "./FoodAiEstimator";
 import { FoodSearch } from "./FoodSearch";
-import { addDays, formatDatePretty, todayISO } from "@/lib/units";
+import { addDays, energyLabel, formatDatePretty, todayISO } from "@/lib/units";
 import type { FoodLogEntry, MealType } from "@/lib/types";
 import { Button, Card, CardContent, Input, Stat } from "@/components/ui";
 
@@ -25,7 +25,8 @@ const MEALS: { id: MealType; label: string }[] = [
 ];
 
 export function FoodLogTab() {
-  const { target } = useWorkspace();
+  const { target, energyUnit } = useWorkspace();
+  const cal = energyLabel(energyUnit);
   const [date, setDate] = React.useState(todayISO());
   const { entries } = useFoodLog(target.uid, date);
   const [importState, setImportState] = React.useState<
@@ -151,7 +152,7 @@ export function FoodLogTab() {
         <Stat
           label="Calories"
           value={Math.round(totals.calories)}
-          hint={calTarget ? `of ${calTarget} kcal` : "kcal"}
+          hint={calTarget ? `of ${calTarget} ${cal}` : cal}
         />
         <Stat
           label="Protein"
@@ -179,6 +180,7 @@ export function FoodLogTab() {
             label={m.label}
             userId={target.uid}
             date={date}
+            cal={cal}
             entries={entries.filter((e) => e.meal === m.id)}
           />
         ))}
@@ -192,12 +194,14 @@ function MealSection({
   label,
   userId,
   date,
+  cal,
   entries,
 }: {
   meal: MealType;
   label: string;
   userId: string;
   date: string;
+  cal: string;
   entries: FoodLogEntry[];
 }) {
   const [adding, setAdding] = React.useState(false);
@@ -210,7 +214,7 @@ function MealSection({
           <div>
             <span className="font-semibold text-gray-900">{label}</span>
             <span className="ml-2 text-sm text-gray-400">
-              {Math.round(mealCals)} kcal
+              {Math.round(mealCals)} {cal}
             </span>
           </div>
           <Button size="sm" variant="ghost" onClick={() => setAdding((v) => !v)}>
@@ -224,7 +228,7 @@ function MealSection({
               <li key={e.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="text-gray-900">{e.name}</span>
                 <span className="flex items-center gap-3 text-gray-500">
-                  <span>{Math.round(e.calories)} kcal</span>
+                  <span>{Math.round(e.calories)} {cal}</span>
                   <span className="text-xs">
                     P{Math.round(e.proteinG)} C{Math.round(e.carbsG)} F{Math.round(e.fatG)}
                   </span>
@@ -243,6 +247,7 @@ function MealSection({
 
         {adding && (
           <AddFoodForm
+            cal={cal}
             onAdd={async (input) => {
               await addFoodLog(userId, date, { ...input, meal });
               setAdding(false);
@@ -255,8 +260,10 @@ function MealSection({
 }
 
 function AddFoodForm({
+  cal,
   onAdd,
 }: {
+  cal: string;
   onAdd: (input: Omit<FoodLogInput, "meal">) => Promise<void>;
 }) {
   const [name, setName] = React.useState("");
@@ -293,7 +300,7 @@ function AddFoodForm({
           onChange={(e) => setName(e.target.value)}
           required
         />
-        <Input type="number" placeholder="kcal" value={calories} onChange={(e) => setCalories(e.target.value)} />
+        <Input type="number" placeholder={cal} value={calories} onChange={(e) => setCalories(e.target.value)} />
         <Input type="number" placeholder="P (g)" value={protein} onChange={(e) => setProtein(e.target.value)} />
         <Input type="number" placeholder="C (g)" value={carbs} onChange={(e) => setCarbs(e.target.value)} />
         <Input type="number" placeholder="F (g)" value={fat} onChange={(e) => setFat(e.target.value)} />

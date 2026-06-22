@@ -25,7 +25,7 @@ import {
   macroTotals,
   weightChangeOverWindow,
 } from "@/lib/progress";
-import { daysAgoISO, fromISODate, fromKg, formatWeight } from "@/lib/units";
+import { daysAgoISO, energyLabel, fromISODate, fromKg, formatWeight } from "@/lib/units";
 import { Card, CardContent, CardHeader, CardTitle, Stat } from "@/components/ui";
 
 const WINDOW_DAYS = 14;
@@ -53,7 +53,8 @@ function chartTheme(dark: boolean) {
 }
 
 export function ProgressTab() {
-  const { target, unit } = useWorkspace();
+  const { target, unit, energyUnit } = useWorkspace();
+  const cal = energyLabel(energyUnit);
   const { resolved } = useTheme();
   const ct = chartTheme(resolved === "dark");
   const { entries: weights } = useWeightEntries(target.uid);
@@ -238,7 +239,7 @@ export function ProgressTab() {
                   />
                   <Legend />
                   <Bar yAxisId="g" dataKey="grams" name="grams" fill="#6366f1" radius={[3, 3, 0, 0]} />
-                  <Bar yAxisId="cal" dataKey="calories" name="kcal" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="cal" dataKey="calories" name={cal} fill="#f59e0b" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

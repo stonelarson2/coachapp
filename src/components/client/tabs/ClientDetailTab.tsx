@@ -10,7 +10,7 @@ import {
   calcMacroTargets,
   calcTDEE,
 } from "@/lib/nutrition";
-import { cmToFtIn, ftInToCm, kgToLb, lbToKg } from "@/lib/units";
+import { cmToFtIn, energyLabel, ftInToCm, kgToLb, lbToKg } from "@/lib/units";
 import type { ActivityLevel, Gender, GoalType, Profile } from "@/lib/types";
 import {
   Button,
@@ -25,7 +25,8 @@ import {
 import { cn } from "@/lib/cn";
 
 export function ClientDetailTab() {
-  const { target } = useWorkspace();
+  const { target, energyUnit } = useWorkspace();
+  const cal = energyLabel(energyUnit);
   const p = target.profile;
 
   const initFtIn = cmToFtIn(p?.heightCm ?? 170);
@@ -147,11 +148,11 @@ export function ClientDetailTab() {
           <div className="flex gap-4 rounded-lg bg-gray-50 p-3 text-sm">
             <div>
               <div className="text-xs uppercase text-gray-500">BMR</div>
-              <div className="font-semibold text-gray-900">{bmr} kcal</div>
+              <div className="font-semibold text-gray-900">{bmr} {cal}</div>
             </div>
             <div>
               <div className="text-xs uppercase text-gray-500">TDEE</div>
-              <div className="font-semibold text-gray-900">{tdee} kcal</div>
+              <div className="font-semibold text-gray-900">{tdee} {cal}</div>
             </div>
           </div>
         </CardContent>
@@ -185,6 +186,7 @@ export function ClientDetailTab() {
               <OptionCard
                 label="Cut"
                 kcal={options.cut}
+                unitLabel={cal}
                 selected={selected === options.cut}
                 recommended={goalType === "cut"}
                 onClick={() => setSelected(options.cut)}
@@ -192,6 +194,7 @@ export function ClientDetailTab() {
               <OptionCard
                 label="Maintain"
                 kcal={options.maintain}
+                unitLabel={cal}
                 selected={selected === options.maintain}
                 recommended={goalType === "maintain"}
                 onClick={() => setSelected(options.maintain)}
@@ -199,6 +202,7 @@ export function ClientDetailTab() {
               <OptionCard
                 label="Bulk"
                 kcal={options.bulk}
+                unitLabel={cal}
                 selected={selected === options.bulk}
                 recommended={goalType === "bulk"}
                 onClick={() => setSelected(options.bulk)}
@@ -207,7 +211,7 @@ export function ClientDetailTab() {
             <p className="mt-2 text-xs text-gray-500">
               Selected target:{" "}
               <span className="font-semibold text-gray-900">
-                {selected ?? recommended} kcal/day
+                {selected ?? recommended} {cal}/day
               </span>
             </p>
           </div>
@@ -227,12 +231,14 @@ export function ClientDetailTab() {
 function OptionCard({
   label,
   kcal,
+  unitLabel,
   selected,
   recommended,
   onClick,
 }: {
   label: string;
   kcal: number;
+  unitLabel: string;
   selected: boolean;
   recommended: boolean;
   onClick: () => void;
@@ -253,7 +259,7 @@ function OptionCard({
         {recommended && <span className="text-[10px] font-semibold text-indigo-600">REC</span>}
       </div>
       <div className="mt-1 text-lg font-semibold text-gray-900">{kcal}</div>
-      <div className="text-xs text-gray-400">kcal/day</div>
+      <div className="text-xs text-gray-400">{unitLabel}/day</div>
     </button>
   );
 }

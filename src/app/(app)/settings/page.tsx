@@ -24,6 +24,11 @@ export default function SettingsPage() {
     await updateUserFields(profile.uid, { weightUnit: unit });
   }
 
+  async function setEnergyUnit(energyUnit: "cal" | "kcal") {
+    if (!profile || (profile.energyUnit ?? "cal") === energyUnit) return;
+    await updateUserFields(profile.uid, { energyUnit });
+  }
+
   function copyCode() {
     if (!profile?.inviteCode) return;
     navigator.clipboard.writeText(profile.inviteCode);
@@ -115,6 +120,27 @@ export default function SettingsPage() {
                 }
               >
                 {u === "lb" ? "Pounds (lb)" : "Kilograms (kg)"}
+              </button>
+            ))}
+          </div>
+
+          <p className="mb-3 mt-5 text-sm text-gray-500">
+            Choose how energy is labelled. The numbers are the same — this only
+            changes the suffix shown next to calories.
+          </p>
+          <div className="inline-flex overflow-hidden rounded-lg border border-gray-300">
+            {(["cal", "kcal"] as const).map((u) => (
+              <button
+                key={u}
+                onClick={() => setEnergyUnit(u)}
+                className={
+                  "px-4 py-2 text-sm font-medium " +
+                  ((profile.energyUnit ?? "cal") === u
+                    ? "bg-indigo-600 text-white"
+                    : "bg-surface text-gray-700 hover:bg-gray-50")
+                }
+              >
+                {u === "cal" ? "Calories (cal)" : "Kilocalories (kcal)"}
               </button>
             ))}
           </div>

@@ -37,6 +37,17 @@ export function fromKg(kg: number, unit: "kg" | "lb"): number {
   return unit === "lb" ? kgToLb(kg) : kg;
 }
 
+export type EnergyUnit = "cal" | "kcal";
+
+/**
+ * The energy label to show in the UI. Calorie numbers are unchanged (food-label
+ * "calories" are already kilocalories); this only swaps the displayed suffix.
+ * Defaults to "cal".
+ */
+export function energyLabel(unit: EnergyUnit | undefined): string {
+  return unit === "kcal" ? "kcal" : "cal";
+}
+
 // ---- Date helpers (work in local time, ISO YYYY-MM-DD keys) ----
 
 export function todayISO(): string {

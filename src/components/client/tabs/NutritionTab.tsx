@@ -18,9 +18,11 @@ import {
   Input,
   Label,
 } from "@/components/ui";
+import { energyLabel } from "@/lib/units";
 
 export function NutritionTab() {
-  const { target } = useWorkspace();
+  const { target, energyUnit } = useWorkspace();
+  const calLabel = energyLabel(energyUnit);
   const weightKg = target.profile?.weightKg ?? target.currentWeightKg ?? 70;
 
   const [calories, setCalories] = React.useState(String(target.calorieTarget ?? 2000));
@@ -76,7 +78,7 @@ export function NutritionTab() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="cal">Daily calorie target (kcal)</Label>
+            <Label htmlFor="cal">Daily calorie target ({calLabel})</Label>
             <Input id="cal" type="number" value={calories} onChange={(e) => setCalories(e.target.value)} />
           </div>
 
@@ -125,7 +127,7 @@ export function NutritionTab() {
           <div className="rounded-lg bg-gray-50 p-3 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Calories from macros</span>
-              <span className="font-semibold text-gray-900">{Math.round(macroCalories)} kcal</span>
+              <span className="font-semibold text-gray-900">{Math.round(macroCalories)} {calLabel}</span>
             </div>
             <div className="mt-1 flex justify-between">
               <span className="text-gray-500">vs. target</span>
@@ -137,7 +139,7 @@ export function NutritionTab() {
                 }
               >
                 {diff > 0 ? "+" : ""}
-                {Math.round(diff)} kcal
+                {Math.round(diff)} {calLabel}
               </span>
             </div>
             {Math.abs(diff) > 50 && (

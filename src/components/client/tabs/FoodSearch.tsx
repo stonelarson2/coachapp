@@ -5,6 +5,8 @@ import { authedFetch } from "@/lib/api";
 import { addFoodLog } from "@/lib/data";
 import type { FoodItem, MealType } from "@/lib/types";
 import { Button, Input, Select, Spinner } from "@/components/ui";
+import { energyLabel } from "@/lib/units";
+import { useWorkspace } from "../context";
 import { BarcodeScanner } from "../BarcodeScanner";
 
 const MEALS: { id: MealType; label: string }[] = [
@@ -35,6 +37,7 @@ export function FoodSearch({
   const [selected, setSelected] = React.useState<FoodItem | null>(null);
   const [scannerOpen, setScannerOpen] = React.useState(false);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const cal = energyLabel(useWorkspace().energyUnit);
 
   // Debounced text search, driven from the input's change handler.
   function onQueryChange(value: string) {
@@ -131,12 +134,13 @@ export function FoodSearch({
                   )}
                 </span>
                 <span className="whitespace-nowrap text-xs text-gray-500">
-                  {Math.round(item.per100g.calories)} kcal/100g
+                  {Math.round(item.per100g.calories)} {cal}/100g
                 </span>
               </button>
               {selected?.sourceId === item.sourceId && selected?.source === item.source && (
                 <FoodAmountEditor
                   food={item}
+                  cal={cal}
                   onAdd={async (entry) => {
                     await addFoodLog(userId, date, entry);
                     setSelected(null);
@@ -162,9 +166,11 @@ export function FoodSearch({
 
 function FoodAmountEditor({
   food,
+  cal,
   onAdd,
 }: {
   food: FoodItem;
+  cal: string;
   onAdd: (entry: {
     meal: MealType;
     name: string;
@@ -266,7 +272,7 @@ function FoodAmountEditor({
 
       <div className="mt-2 flex items-center justify-between">
         <span className="text-sm text-gray-600">
-          <span className="font-medium text-gray-900">{Math.round(scaled.calories)} kcal</span>
+          <span className="font-medium text-gray-900">{Math.round(scaled.calories)} {cal}</span>
           <span className="ml-2 text-xs text-gray-400">
             P{Math.round(scaled.proteinG)} C{Math.round(scaled.carbsG)} F{Math.round(scaled.fatG)}
           </span>

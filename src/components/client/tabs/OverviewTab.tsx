@@ -4,10 +4,10 @@ import * as React from "react";
 import { useWorkspace } from "../context";
 import { useWeightEntries, logWeight } from "@/lib/data";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Stat } from "@/components/ui";
-import { formatWeight, fromKg, toKg, todayISO } from "@/lib/units";
+import { energyLabel, formatWeight, fromKg, toKg, todayISO } from "@/lib/units";
 
 export function OverviewTab() {
-  const { target, unit } = useWorkspace();
+  const { target, unit, energyUnit } = useWorkspace();
   const { entries } = useWeightEntries(target.uid);
 
   const start = target.startWeightKg ?? target.profile?.weightKg ?? 0;
@@ -40,7 +40,7 @@ export function OverviewTab() {
         <Stat
           label="Target calories"
           value={target.calorieTarget ? `${target.calorieTarget}` : "—"}
-          hint="kcal / day"
+          hint={`${energyLabel(energyUnit)} / day`}
         />
         <Stat label="Goal" value={<span className="capitalize">{goalLabel}</span>} />
       </div>
