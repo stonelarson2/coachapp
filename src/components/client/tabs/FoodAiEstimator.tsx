@@ -8,10 +8,12 @@ import type { MealType } from "@/lib/types";
 import { Button, Input, Select } from "@/components/ui";
 import { energyLabel } from "@/lib/units";
 import { useWorkspace } from "../context";
+import { CameraCapture } from "../CameraCapture";
 
 interface EstimatedItem {
   name: string;
   quantity: string;
+  gramsEstimate?: number;
   calories: number;
   proteinG: number;
   carbsG: number;
@@ -24,12 +26,38 @@ interface EstimateResult {
   confidence: "low" | "medium" | "high";
 }
 
+// Editable working copy of an estimated item (all numeric fields are strings
+// while being edited).
+interface EditItem {
+  include: boolean;
+  name: string;
+  quantity: string;
+  grams: string;
+  calories: string;
+  proteinG: string;
+  carbsG: string;
+  fatG: string;
+}
+
 const MEALS: { id: MealType; label: string }[] = [
   { id: "breakfast", label: "Breakfast" },
   { id: "lunch", label: "Lunch" },
   { id: "dinner", label: "Dinner" },
   { id: "snacks", label: "Snacks" },
 ];
+
+function toEdit(it: EstimatedItem): EditItem {
+  return {
+    include: true,
+    name: it.name,
+    quantity: it.quantity,
+    grams: it.gramsEstimate ? String(Math.round(it.gramsEstimate)) : "",
+    calories: String(Math.round(it.calories)),
+    proteinG: String(Math.round(it.proteinG)),
+    carbsG: String(Math.round(it.carbsG)),
+    fatG: String(Math.round(it.fatG)),
+  };
+}
 
 export function FoodAiEstimator({
   userId,
@@ -45,13 +73,13 @@ export function FoodAiEstimator({
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const [result, setResult] = React.useState<EstimateResult | null>(null);
-  const [selected, setSelected] = React.useState<Set<number>>(new Set());
+  const [items, setItems] = React.useState<EditItem[]>([]);
   const [meal, setMeal] = React.useState<MealType>("breakfast");
 
   // Photo mode
-  const [encoded, setEncoded] = React.useState<EncodedImage | null>(null);
-  const [preview, setPreview] = React.useState<string>("");
+  const [images, setImages] = React.useState<EncodedImage[]>([]);
   const [clarifications, setClarifications] = React.useState("");
+  const [cameraOpen, setCameraOpen] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   // Text mode
@@ -60,29 +88,31 @@ export function FoodAiEstimator({
 
   function resetResult() {
     setResult(null);
-    setSelected(new Set());
+    setItems([]);
     setError("");
   }
 
-  async function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function pickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file) return;
+    if (files.length === 0) return;
     resetResult();
-    setClarifications("");
     try {
-      const enc = await downscaleImage(file);
-      setEncoded(enc);
-      setPreview(`data:${enc.mediaType};base64,${enc.data}`);
+      const encoded = await Promise.all(files.map((f) => downscaleImage(f)));
+      setImages((prev) => [...prev, ...encoded].slice(0, 4));
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
+  function addCameraImage(img: EncodedImage) {
+    resetResult();
+    setImages((prev) => [...prev, img].slice(0, 4));
+  }
+
   function applyResult(r: EstimateResult) {
     setResult(r);
-    // Default to including every item.
-    setSelected(new Set(r.items.map((_, i) => i)));
+    setItems(r.items.map(toEdit));
   }
 
   async function estimate() {
@@ -90,13 +120,13 @@ export function FoodAiEstimator({
     setBusy(true);
     try {
       if (subMode === "photo") {
-        if (!encoded) {
-          setError("Choose a food photo first.");
+        if (images.length === 0) {
+          setError("Add at least one food photo first.");
           return;
         }
         const r = await authedFetch<EstimateResult>("/api/food-estimate", {
           mode: "photo",
-          image: encoded,
+          images,
           clarifications: clarifications.trim() || undefined,
         });
         applyResult(r);
@@ -119,36 +149,50 @@ export function FoodAiEstimator({
     }
   }
 
-  function toggle(i: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i);
-      else next.add(i);
-      return next;
-    });
+  function updateItem(i: number, patch: Partial<EditItem>) {
+    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
 
-  async function addSelected() {
-    if (!result) return;
+  /** Multiply an item's grams + macros by a factor (portion scaling). */
+  function scaleItem(i: number, factor: number) {
+    setItems((prev) =>
+      prev.map((it, idx) => {
+        if (idx !== i) return it;
+        const mul = (s: string) => String(Math.round((Number(s) || 0) * factor));
+        return {
+          ...it,
+          grams: it.grams ? mul(it.grams) : it.grams,
+          calories: mul(it.calories),
+          proteinG: mul(it.proteinG),
+          carbsG: mul(it.carbsG),
+          fatG: mul(it.fatG),
+        };
+      }),
+    );
+  }
+
+  const included = items.filter((it) => it.include);
+  const totalCals = included.reduce((s, it) => s + (Number(it.calories) || 0), 0);
+
+  async function addItems() {
+    if (included.length === 0) return;
     setBusy(true);
     setError("");
     try {
-      const chosen = result.items.filter((_, i) => selected.has(i));
-      for (const it of chosen) {
+      for (const it of included) {
+        const name = it.quantity.trim() ? `${it.name.trim()} (${it.quantity.trim()})` : it.name.trim();
         await addFoodLog(userId, date, {
           meal,
-          name: it.quantity ? `${it.name} (${it.quantity})` : it.name,
-          calories: Math.round(it.calories),
-          proteinG: Math.round(it.proteinG),
-          carbsG: Math.round(it.carbsG),
-          fatG: Math.round(it.fatG),
+          name,
+          calories: Math.round(Number(it.calories) || 0),
+          proteinG: Math.round(Number(it.proteinG) || 0),
+          carbsG: Math.round(Number(it.carbsG) || 0),
+          fatG: Math.round(Number(it.fatG) || 0),
         });
       }
-      // Reset for the next estimate.
-      setResult(null);
-      setSelected(new Set());
-      setEncoded(null);
-      setPreview("");
+      // Reset everything for the next estimate.
+      resetResult();
+      setImages([]);
       setClarifications("");
       setDescription("");
       setAmount("");
@@ -182,18 +226,46 @@ export function FoodAiEstimator({
 
       {subMode === "photo" ? (
         <div className="space-y-3">
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={pickFile} />
-          {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="Food" className="max-h-48 rounded-lg object-contain" />
-          ) : null}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={pickFiles}
+          />
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {images.map((im, i) => (
+                <div key={i} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`data:${im.mediaType};base64,${im.data}`}
+                    alt={`Food ${i + 1}`}
+                    className="h-20 w-20 rounded-lg object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-800 text-xs text-white"
+                    aria-label="Remove photo"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
-              {preview ? "Change photo" : "Choose photo"}
+            <Button size="sm" variant="secondary" onClick={() => setCameraOpen(true)}>
+              📷 Camera
             </Button>
-            {encoded && (
+            <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
+              {images.length > 0 ? "Add photo" : "Choose photo"}
+            </Button>
+            {images.length > 0 && (
               <Button size="sm" onClick={estimate} disabled={busy}>
-                {busy ? "Analyzing…" : "Estimate macros"}
+                {busy ? "Analyzing…" : `Estimate macros${images.length > 1 ? ` (${images.length})` : ""}`}
               </Button>
             )}
           </div>
@@ -223,22 +295,49 @@ export function FoodAiEstimator({
 
       {result && (
         <div className="mt-4 space-y-3 border-t border-gray-100 pt-3">
-          <ul className="space-y-1.5">
-            {result.items.map((it, i) => (
-              <li key={i} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={selected.has(i)}
-                  onChange={() => toggle(i)}
-                  className="h-4 w-4"
-                />
-                <span className="flex-1 text-gray-900">
-                  {it.name} <span className="text-gray-400">{it.quantity}</span>
-                </span>
-                <span className="text-gray-500">{Math.round(it.calories)} {cal}</span>
-                <span className="text-xs text-gray-400">
-                  P{Math.round(it.proteinG)} C{Math.round(it.carbsG)} F{Math.round(it.fatG)}
-                </span>
+          <p className="text-xs text-gray-500">
+            Review and tweak before adding — edit any number, or use ½ / 2× to rescale a portion.
+          </p>
+
+          <ul className="space-y-2">
+            {items.map((it, i) => (
+              <li key={i} className="rounded-lg bg-gray-50 p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={it.include}
+                    onChange={(e) => updateItem(i, { include: e.target.checked })}
+                    className="h-4 w-4"
+                  />
+                  <Input
+                    className="h-8 flex-1"
+                    value={it.name}
+                    onChange={(e) => updateItem(i, { name: e.target.value })}
+                  />
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => scaleItem(i, 0.5)}
+                      className="rounded border border-gray-300 px-2 text-xs text-gray-600 hover:bg-gray-100"
+                    >
+                      ½
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scaleItem(i, 2)}
+                      className="rounded border border-gray-300 px-2 text-xs text-gray-600 hover:bg-gray-100"
+                    >
+                      2×
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  <LabeledNum label="qty" text value={it.quantity} onChange={(v) => updateItem(i, { quantity: v })} />
+                  <LabeledNum label={cal} value={it.calories} onChange={(v) => updateItem(i, { calories: v })} />
+                  <LabeledNum label="P (g)" value={it.proteinG} onChange={(v) => updateItem(i, { proteinG: v })} />
+                  <LabeledNum label="C (g)" value={it.carbsG} onChange={(v) => updateItem(i, { carbsG: v })} />
+                  <LabeledNum label="F (g)" value={it.fatG} onChange={(v) => updateItem(i, { fatG: v })} />
+                </div>
               </li>
             ))}
           </ul>
@@ -270,17 +369,45 @@ export function FoodAiEstimator({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-500">Add to</span>
+          <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+            <span className="text-sm text-gray-500">
+              {Math.round(totalCals)} {cal} · add to
+            </span>
             <Select value={meal} onChange={(e) => setMeal(e.target.value as MealType)} className="w-auto">
               {MEALS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </Select>
-            <Button size="sm" onClick={addSelected} disabled={busy || selected.size === 0}>
-              Add {selected.size} item{selected.size === 1 ? "" : "s"}
+            <Button size="sm" onClick={addItems} disabled={busy || included.length === 0}>
+              Add {included.length} item{included.length === 1 ? "" : "s"}
             </Button>
           </div>
         </div>
       )}
+
+      <CameraCapture open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={addCameraImage} />
     </div>
+  );
+}
+
+function LabeledNum({
+  label,
+  value,
+  onChange,
+  text,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  text?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-gray-400">{label}</span>
+      <Input
+        className="h-8"
+        type={text ? "text" : "number"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
   );
 }

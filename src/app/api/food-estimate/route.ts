@@ -1,21 +1,28 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { verifyRequest } from "@/lib/server-auth";
+import { searchFoods } from "@/lib/foodSearch";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Two modes:
-//  - "photo": a base64 food image (+ optional clarifications) → estimated macros + follow-up questions
-//  - "text":  a food description + amount/weight → estimated macros
-// Both return structured JSON via a forced tool call (reliable shape, no JSON parsing of prose).
+//  - "photo": one or more base64 food images (+ optional clarifications)
+//  - "text":  a food description + amount/weight
+// The model may call search_food_database to cross-check macros against USDA /
+// Open Food Facts, then returns structured JSON via a forced record tool call.
 
 type Mode = "photo" | "text";
 
+interface EncodedImage {
+  mediaType: string;
+  data: string;
+}
 interface Body {
   mode?: Mode;
   // photo mode
-  image?: { mediaType: string; data: string };
+  image?: EncodedImage; // back-compat: single image
+  images?: EncodedImage[];
   clarifications?: string;
   // text mode
   description?: string;
@@ -23,18 +30,39 @@ interface Body {
 }
 
 const ALLOWED_MEDIA = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_IMAGES = 4;
+const MAX_TURNS = 4; // model turns before we force a final answer
 
 const SYSTEM =
   "You are a meticulous nutrition assistant that estimates the macronutrients of food. " +
-  "Given a photo and/or a text description, identify each distinct food item and estimate its " +
-  "calories, protein, carbohydrates, and fat. Base estimates on standard nutrition databases and " +
-  "realistic portion sizes. When portion size, preparation, or hidden ingredients (oils, sauces, " +
-  "dressings) are ambiguous and materially affect the numbers, state your assumptions and ask brief, " +
-  "specific clarifying questions that would most improve accuracy. Prefer common household measures. " +
-  "Always respond by calling the record_food_estimate tool — never with free text.";
+  "Given a photo (or several) and/or a text description, identify each distinct food item and " +
+  "estimate its weight in grams plus calories, protein, carbohydrates, and fat.\n\n" +
+  "Method:\n" +
+  "1. Identify each food and estimate a realistic portion size in grams from visual cues " +
+  "(plate/utensil scale, container size) or the description.\n" +
+  "2. For packaged, branded, or common whole foods, call search_food_database to verify the " +
+  "per-100g macros against real database entries, then scale to your gram estimate. Prefer " +
+  "database values over guesses when a good match exists.\n" +
+  "3. Account for cooking oils, butter, sauces and dressings that are easy to miss.\n" +
+  "4. When portion size or hidden ingredients are ambiguous and materially affect the numbers, " +
+  "state your assumptions and ask brief, specific clarifying questions.\n\n" +
+  "Always finish by calling record_food_estimate — never answer with free text.";
 
-// The tool schema is the structured output contract. Forcing this tool guarantees the response shape.
-const TOOL: Anthropic.Tool = {
+const SEARCH_TOOL: Anthropic.Tool = {
+  name: "search_food_database",
+  description:
+    "Search the USDA + Open Food Facts food databases for real per-100g macros to verify an " +
+    "estimate. Use a concise food name (e.g. 'grilled chicken breast', 'coca cola').",
+  input_schema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "Food name to look up." },
+    },
+    required: ["query"],
+  },
+};
+
+const RECORD_TOOL: Anthropic.Tool = {
   name: "record_food_estimate",
   description: "Record the estimated foods and their macros, plus any clarifying questions.",
   input_schema: {
@@ -49,14 +77,18 @@ const TOOL: Anthropic.Tool = {
             name: { type: "string", description: "Concise food name, e.g. 'Grilled chicken breast'." },
             quantity: {
               type: "string",
-              description: "Estimated portion, e.g. '150 g', '1 cup', '2 slices'.",
+              description: "Human-readable portion, e.g. '150 g', '1 cup', '2 slices'.",
             },
-            calories: { type: "number", description: "Calories (kcal)." },
+            gramsEstimate: {
+              type: "number",
+              description: "Estimated weight of this portion in grams (used to rescale macros).",
+            },
+            calories: { type: "number", description: "Calories (kcal) for the estimated portion." },
             proteinG: { type: "number", description: "Protein in grams." },
             carbsG: { type: "number", description: "Carbohydrates in grams." },
             fatG: { type: "number", description: "Fat in grams." },
           },
-          required: ["name", "quantity", "calories", "proteinG", "carbsG", "fatG"],
+          required: ["name", "quantity", "gramsEstimate", "calories", "proteinG", "carbsG", "fatG"],
         },
       },
       assumptions: {
@@ -66,8 +98,7 @@ const TOOL: Anthropic.Tool = {
       },
       questions: {
         type: "array",
-        description:
-          "Up to 3 short clarifying questions that would most improve accuracy. Empty if confident.",
+        description: "Up to 3 short clarifying questions that would most improve accuracy. Empty if confident.",
         items: { type: "string" },
       },
       confidence: {
@@ -79,6 +110,18 @@ const TOOL: Anthropic.Tool = {
     required: ["items", "assumptions", "questions", "confidence"],
   },
 };
+
+/** Run the model's food-database lookups and format compact results for it. */
+async function runSearch(query: string): Promise<string> {
+  const items = await searchFoods(query);
+  if (items.length === 0) return `No database matches for "${query}".`;
+  const top = items.slice(0, 4).map((f) => {
+    const brand = f.brand ? ` [${f.brand}]` : "";
+    const p = f.per100g;
+    return `- ${f.name}${brand}: per 100g → ${Math.round(p.calories)} kcal, P ${p.proteinG}g, C ${p.carbsG}g, F ${p.fatG}g`;
+  });
+  return `Matches for "${query}":\n${top.join("\n")}`;
+}
 
 export async function POST(req: Request) {
   try {
@@ -98,31 +141,33 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Body;
   const mode: Mode = body.mode === "text" ? "text" : "photo";
 
-  // Build the user content for the chosen mode.
   const content: Anthropic.ContentBlockParam[] = [];
 
   if (mode === "photo") {
-    const image = body.image;
-    if (!image?.data || !ALLOWED_MEDIA.has(image.mediaType)) {
+    const images = (body.images ?? (body.image ? [body.image] : [])).slice(0, MAX_IMAGES);
+    if (images.length === 0 || images.some((im) => !im?.data || !ALLOWED_MEDIA.has(im.mediaType))) {
       return NextResponse.json(
-        { error: "A valid food image (jpeg, png, webp, or gif) is required." },
+        { error: "At least one valid food image (jpeg, png, webp, or gif) is required." },
         { status: 400 },
       );
     }
-    content.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: image.mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
-        data: image.data,
-      },
-    });
+    for (const im of images) {
+      content.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: im.mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+          data: im.data,
+        },
+      });
+    }
     const clarif = (body.clarifications || "").trim();
+    const noun = images.length > 1 ? "these photos" : "this photo";
     content.push({
       type: "text",
       text: clarif
-        ? `Estimate the macros for the food in this photo. The user clarified: ${clarif}`
-        : "Estimate the macros for the food in this photo.",
+        ? `Estimate the macros for the food in ${noun}. The user clarified: ${clarif}`
+        : `Estimate the macros for the food in ${noun}.`,
     });
   } else {
     const description = (body.description || "").trim();
@@ -141,23 +186,55 @@ export async function POST(req: Request) {
   try {
     const anthropic = new Anthropic({ apiKey });
     const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
-    const message = await anthropic.messages.create({
-      model,
-      max_tokens: 1024,
-      system: SYSTEM,
-      tools: [TOOL],
-      tool_choice: { type: "tool", name: TOOL.name },
-      messages: [{ role: "user", content }],
-    });
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content }];
 
-    const toolBlock = message.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-    );
-    if (!toolBlock) {
-      return NextResponse.json({ error: "The model did not return an estimate." }, { status: 502 });
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const lastTurn = turn === MAX_TURNS - 1;
+      const message = await anthropic.messages.create({
+        model,
+        max_tokens: 1500,
+        system: SYSTEM,
+        tools: [SEARCH_TOOL, RECORD_TOOL],
+        // Let the model search freely, but force the final answer on the last turn.
+        tool_choice: lastTurn
+          ? { type: "tool", name: RECORD_TOOL.name }
+          : { type: "any" },
+        messages,
+      });
+
+      const toolUses = message.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+      );
+      const record = toolUses.find((b) => b.name === RECORD_TOOL.name);
+      if (record) {
+        return NextResponse.json(record.input);
+      }
+
+      const searches = toolUses.filter((b) => b.name === SEARCH_TOOL.name);
+      if (searches.length === 0) {
+        // No tool call we can act on; nudge once more or give up.
+        if (lastTurn) break;
+        continue;
+      }
+
+      // Run each requested search and feed the results back.
+      messages.push({ role: "assistant", content: message.content });
+      const results: Anthropic.ToolResultBlockParam[] = [];
+      for (const s of searches) {
+        const query = (s.input as { query?: string }).query || "";
+        results.push({
+          type: "tool_result",
+          tool_use_id: s.id,
+          content: await runSearch(query),
+        });
+      }
+      messages.push({ role: "user", content: results });
     }
 
-    return NextResponse.json(toolBlock.input);
+    return NextResponse.json(
+      { error: "The model did not return an estimate. Please try again." },
+      { status: 502 },
+    );
   } catch (err) {
     return NextResponse.json(
       { error: (err as Error).message || "Failed to estimate macros" },

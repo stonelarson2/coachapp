@@ -32,6 +32,31 @@ export async function downscaleImage(file: File, maxEdge = 1024, quality = 0.8):
   return { mediaType: "image/jpeg", data: out.split(",")[1] };
 }
 
+/**
+ * Capture the current frame of a playing <video> element, downscale it the same
+ * way as file uploads, and return base64 JPEG. Used by the live camera capture.
+ */
+export function encodeVideoFrame(
+  video: HTMLVideoElement,
+  maxEdge = 1024,
+  quality = 0.8,
+): EncodedImage {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  const scale = Math.min(1, maxEdge / Math.max(vw, vh));
+  const w = Math.round(vw * scale);
+  const h = Math.round(vh * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not capture the camera frame.");
+  ctx.drawImage(video, 0, 0, w, h);
+  const out = canvas.toDataURL("image/jpeg", quality);
+  return { mediaType: "image/jpeg", data: out.split(",")[1] };
+}
+
 function readAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
