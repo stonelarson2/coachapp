@@ -184,6 +184,82 @@ export async function POST(req: Request) {
   });
 }
 
+interface DeleteClientBody {
+  uid?: string;
+}
+
+/** Delete every document returned by a query, in batches of 500. */
+async function deleteQuery(
+  adminDb: ReturnType<typeof getAdminDb>,
+  collectionName: string,
+  field: string,
+  value: string,
+): Promise<void> {
+  const snap = await adminDb.collection(collectionName).where(field, "==", value).get();
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += 500) {
+    const batch = adminDb.batch();
+    for (const d of docs.slice(i, i + 500)) batch.delete(d.ref);
+    await batch.commit();
+  }
+}
+
+/**
+ * Remove a client: deletes their Firestore data (weigh-ins, food logs, photos,
+ * insights, check-ins, messages), the users/{uid} profile doc, and the auth
+ * account. Coach-only, and only for clients linked to the calling coach.
+ */
+export async function DELETE(req: Request) {
+  let decoded;
+  try {
+    decoded = await verifyRequest(req);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const adminDb = getAdminDb();
+  const adminAuth = getAdminAuth();
+
+  const coachSnap = await adminDb.collection("users").doc(decoded.uid).get();
+  const coach = coachSnap.data() as UserDoc | undefined;
+  if (!coach || coach.role !== "coach") {
+    return NextResponse.json({ error: "Only coaches can remove clients" }, { status: 403 });
+  }
+
+  const body = (await req.json().catch(() => ({}))) as DeleteClientBody;
+  const uid = (body.uid || "").trim();
+  if (!uid) {
+    return NextResponse.json({ error: "A client id is required" }, { status: 400 });
+  }
+
+  const clientSnap = await adminDb.collection("users").doc(uid).get();
+  const client = clientSnap.data() as UserDoc | undefined;
+  if (!client) {
+    return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  }
+  if (client.coachId !== decoded.uid) {
+    return NextResponse.json({ error: "That client is not yours to remove" }, { status: 403 });
+  }
+
+  // Best-effort cleanup of the client's per-user collections.
+  await deleteQuery(adminDb, "weightEntries", "userId", uid);
+  await deleteQuery(adminDb, "foodLogs", "userId", uid);
+  await deleteQuery(adminDb, "photos", "userId", uid);
+  await deleteQuery(adminDb, "insights", "userId", uid);
+  await deleteQuery(adminDb, "checkins", "userId", uid);
+  await deleteQuery(adminDb, "messages", "clientId", uid);
+
+  // Remove the profile doc, then the auth account.
+  await adminDb.collection("users").doc(uid).delete();
+  try {
+    await adminAuth.deleteUser(uid);
+  } catch {
+    // Auth user may already be gone; the profile doc is what matters for the app.
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
 /**
  * Seed ~9 weeks of weekly weigh-ins (trending toward the cut goal) and a few
  * days of food logs so charts, the dashboard and AI insights have data to show.

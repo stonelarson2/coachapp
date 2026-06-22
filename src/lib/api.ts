@@ -4,7 +4,7 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 export async function authedFetch<T = unknown>(
   url: string,
   body: unknown,
-  method: "POST" | "PUT" = "POST",
+  method: "POST" | "PUT" | "DELETE" = "POST",
 ): Promise<T> {
   const user = getFirebaseAuth().currentUser;
   if (!user) throw new Error("Not signed in");

@@ -34,6 +34,7 @@ function DashboardInner() {
   const [exampleBusy, setExampleBusy] = React.useState(false);
   const [example, setExample] = React.useState<ExampleResult | null>(null);
   const [error, setError] = React.useState("");
+  const [toRemove, setToRemove] = React.useState<UserDoc | null>(null);
 
   const hasExample = clients.some((c) => c.isExample);
 
@@ -136,11 +137,19 @@ function DashboardInner() {
                   <th className="px-5 py-3">Goal</th>
                   <th className="px-5 py-3">Current weight</th>
                   <th className="px-5 py-3">Change</th>
+                  <th className="px-5 py-3 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {clients.map((c) => (
-                  <ClientRow key={c.uid} client={c} unit={unit} />
+                  <ClientRow
+                    key={c.uid}
+                    client={c}
+                    unit={unit}
+                    onRemove={() => setToRemove(c)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -149,11 +158,88 @@ function DashboardInner() {
       </Card>
 
       <AddClientDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      <RemoveClientDialog
+        client={toRemove}
+        onClose={() => setToRemove(null)}
+        onError={setError}
+      />
     </div>
   );
 }
 
-function ClientRow({ client, unit }: { client: UserDoc; unit: "kg" | "lb" }) {
+function RemoveClientDialog({
+  client,
+  onClose,
+  onError,
+}: {
+  client: UserDoc | null;
+  onClose: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [busy, setBusy] = React.useState(false);
+
+  if (!client) return null;
+
+  async function remove() {
+    if (!client) return;
+    onError("");
+    setBusy(true);
+    try {
+      await authedFetch("/api/clients", { uid: client.uid }, "DELETE");
+      // The realtime useClients listener drops the row automatically.
+      onClose();
+    } catch (err) {
+      onError((err as Error).message);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function close() {
+    if (busy) return;
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+      onMouseDown={close}
+    >
+      <Card
+        className="w-full max-w-md bg-elevated"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-4 p-5">
+          <h2 className="text-lg font-semibold text-gray-900">Remove client</h2>
+          <p className="text-sm text-gray-600">
+            Remove <span className="font-medium text-gray-900">{client.name}</span>? This
+            permanently deletes their account and all their data — weigh-ins, food logs,
+            photos, check-ins, insights and messages. This cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={close} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={remove} disabled={busy}>
+              {busy ? "Removing…" : "Remove client"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ClientRow({
+  client,
+  unit,
+  onRemove,
+}: {
+  client: UserDoc;
+  unit: "kg" | "lb";
+  onRemove: () => void;
+}) {
   const start = client.startWeightKg ?? client.profile?.weightKg ?? 0;
   const current = client.currentWeightKg ?? start;
   const changeKg = current - start;
@@ -183,6 +269,16 @@ function ClientRow({ client, unit }: { client: UserDoc; unit: "kg" | "lb" }) {
       <td className="px-5 py-3 text-gray-900">{formatWeight(current, unit)}</td>
       <td className="px-5 py-3">
         <ChangeCell changeKg={changeKg} unit={unit} />
+      </td>
+      <td className="px-5 py-3 text-right">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+          className="text-red-600 hover:bg-red-50"
+        >
+          Remove
+        </Button>
       </td>
     </tr>
   );
