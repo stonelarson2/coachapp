@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { verifyRequest } from "@/lib/server-auth";
 import { searchFoods } from "@/lib/foodSearch";
+import { aiErrorResponse, aiNotConfigured } from "@/lib/aiError";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -131,12 +132,7 @@ export async function POST(req: Request) {
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "AI estimation is not configured (missing ANTHROPIC_API_KEY)." },
-      { status: 500 },
-    );
-  }
+  if (!apiKey) return aiNotConfigured("food-estimate");
 
   const body = (await req.json().catch(() => ({}))) as Body;
   const mode: Mode = body.mode === "text" ? "text" : "photo";
@@ -232,13 +228,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { error: "The model did not return an estimate. Please try again." },
+      { error: "The AI couldn't read that. Try a clearer photo or describe the food." },
       { status: 502 },
     );
   } catch (err) {
-    return NextResponse.json(
-      { error: (err as Error).message || "Failed to estimate macros" },
-      { status: 502 },
-    );
+    return aiErrorResponse(err, "food-estimate");
   }
 }
