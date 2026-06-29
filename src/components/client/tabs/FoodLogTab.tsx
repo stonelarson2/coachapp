@@ -15,6 +15,7 @@ import {
 } from "@/lib/data";
 import { parseMfpCsv } from "@/lib/mfpImport";
 import { FoodAiEstimator } from "./FoodAiEstimator";
+import { FoodHistorySummary } from "./FoodHistorySummary";
 import { FoodSearch } from "./FoodSearch";
 import { QuickAddFoods } from "./QuickAddFoods";
 import { addDays, energyLabel, formatDatePretty, todayISO } from "@/lib/units";
@@ -149,6 +150,14 @@ export function FoodLogTab() {
           Next →
         </Button>
       </div>
+
+      {/* Rolling multi-day averages + adherence (look back across the week/month) */}
+      <FoodHistorySummary
+        userId={target.uid}
+        calorieTarget={calTarget}
+        macroTargets={macroTarget}
+        cal={cal}
+      />
 
       {/* One-tap re-add of favorites + recently logged foods */}
       <QuickAddFoods userId={target.uid} date={date} />
