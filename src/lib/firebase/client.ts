@@ -6,7 +6,13 @@
 // throw if env vars are absent). All consumers run in the browser.
 
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+  type Auth,
+} from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
@@ -28,7 +34,20 @@ let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
 
 export function getFirebaseAuth(): Auth {
-  if (!authInstance) authInstance = getAuth(getFirebaseApp());
+  if (!authInstance) {
+    const app = getFirebaseApp();
+    try {
+      // Explicitly persist the session across browser restarts (IndexedDB, then
+      // localStorage). Without this, some browser environments fall back to
+      // in-memory persistence and the user is logged out every time they reopen.
+      authInstance = initializeAuth(app, {
+        persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      });
+    } catch {
+      // Auth was already initialized for this app (e.g. Fast Refresh) — reuse it.
+      authInstance = getAuth(app);
+    }
+  }
   return authInstance;
 }
 
