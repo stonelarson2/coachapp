@@ -2,9 +2,35 @@ import { NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { verifyRequest } from "@/lib/server-auth";
 import { calcCalorieTarget, calcMacroTargets } from "@/lib/nutrition";
-import type { Goal, Profile, Role, UserDoc } from "@/lib/types";
+import type { Goal, Intake, Profile, Role, UserDoc } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+// Intake fields we accept, and a cap so a client can't store unbounded text.
+const INTAKE_FIELDS: (keyof Intake)[] = [
+  "primaryGoal",
+  "allergies",
+  "dislikes",
+  "injuries",
+  "schedule",
+  "experience",
+  "notes",
+];
+const INTAKE_MAX = 1000;
+
+/** Keep only known intake fields, as trimmed strings capped in length. */
+function sanitizeIntake(raw: unknown): Intake | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: Intake = {};
+  for (const key of INTAKE_FIELDS) {
+    const v = src[key];
+    if (typeof v === "string" && v.trim()) {
+      out[key] = v.trim().slice(0, INTAKE_MAX);
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 function generateInviteCode(): string {
   // 6 chars, unambiguous alphabet (no 0/O/1/I).
@@ -38,6 +64,7 @@ interface OnboardingBody {
   inviteCode?: string;
   profile?: Profile;
   goal?: Goal;
+  intake?: Intake;
 }
 
 export async function POST(req: Request) {
@@ -129,6 +156,7 @@ export async function POST(req: Request) {
   const goal: Goal = body.goal ?? { type: "maintain", targetRatePerWeekKg: 0.5 };
   const calorieTarget = calcCalorieTarget(profile, goal.type, goal.targetRatePerWeekKg);
   const macroTargets = calcMacroTargets(calorieTarget, profile.weightKg);
+  const intake = sanitizeIntake(body.intake);
 
   const doc: UserDoc = {
     uid,
@@ -144,6 +172,7 @@ export async function POST(req: Request) {
     weightUnit: "lb",
     startWeightKg: profile.weightKg,
     currentWeightKg: profile.weightKg,
+    ...(intake ? { intake } : {}),
     createdAt: now,
   };
   await userRef.set(doc);

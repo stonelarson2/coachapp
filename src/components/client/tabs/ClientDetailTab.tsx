@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useWorkspace } from "../context";
+import { CoachNotes } from "./CoachNotes";
+import { IntakeSummary } from "./IntakeSummary";
 import { updateUserFields } from "@/lib/data";
 import {
   ACTIVITY_LABELS,
@@ -25,7 +27,7 @@ import {
 import { cn } from "@/lib/cn";
 
 export function ClientDetailTab() {
-  const { target, energyUnit } = useWorkspace();
+  const { target, energyUnit, isCoachView } = useWorkspace();
   const cal = energyLabel(energyUnit);
   const p = target.profile;
 
@@ -102,6 +104,7 @@ export function ClientDetailTab() {
   }
 
   return (
+    <div className="space-y-6">
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
@@ -224,6 +227,14 @@ export function ClientDetailTab() {
           </div>
         </CardContent>
       </Card>
+    </div>
+
+      {isCoachView && (
+        <>
+          <IntakeSummary />
+          <CoachNotes />
+        </>
+      )}
     </div>
   );
 }

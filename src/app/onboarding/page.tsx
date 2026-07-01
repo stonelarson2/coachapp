@@ -144,6 +144,15 @@ function ClientStep({ name, onBack }: { name: string; onBack: () => void }) {
   const [goalType, setGoalType] = React.useState<GoalType>("maintain");
   const [rateLb, setRateLb] = React.useState("1");
 
+  // Optional intake questionnaire (shared with the coach).
+  const [primaryGoal, setPrimaryGoal] = React.useState("");
+  const [experience, setExperience] = React.useState("");
+  const [allergies, setAllergies] = React.useState("");
+  const [dislikes, setDislikes] = React.useState("");
+  const [injuries, setInjuries] = React.useState("");
+  const [schedule, setSchedule] = React.useState("");
+  const [intakeNotes, setIntakeNotes] = React.useState("");
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -161,12 +170,22 @@ function ClientStep({ name, onBack }: { name: string; onBack: () => void }) {
         targetRatePerWeekKg:
           goalType === "maintain" ? 0 : Number(lbToKg(Number(rateLb)).toFixed(3)),
       };
+      const intake = {
+        primaryGoal,
+        experience,
+        allergies,
+        dislikes,
+        injuries,
+        schedule,
+        notes: intakeNotes,
+      };
       await authedFetch("/api/onboarding", {
         role: "client",
         name,
         inviteCode: inviteCode.trim().toUpperCase(),
         profile,
         goal,
+        intake,
       });
       router.replace("/me");
     } catch (err) {
@@ -303,6 +322,57 @@ function ClientStep({ name, onBack }: { name: string; onBack: () => void }) {
           )}
         </div>
 
+        <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">A bit about you</p>
+            <p className="text-xs text-gray-500">
+              Optional, but it helps your coach tailor your plan.
+            </p>
+          </div>
+          <IntakeField
+            label="Your main goal"
+            placeholder="e.g. Lose 15 lb for a wedding in October"
+            value={primaryGoal}
+            onChange={setPrimaryGoal}
+          />
+          <IntakeField
+            label="Training / dieting experience"
+            placeholder="e.g. Lifted for 2 years, first time tracking macros"
+            value={experience}
+            onChange={setExperience}
+          />
+          <IntakeField
+            label="Allergies or intolerances"
+            placeholder="e.g. Lactose intolerant, tree nut allergy"
+            value={allergies}
+            onChange={setAllergies}
+          />
+          <IntakeField
+            label="Foods you dislike / avoid"
+            placeholder="e.g. Don't like fish, vegetarian"
+            value={dislikes}
+            onChange={setDislikes}
+          />
+          <IntakeField
+            label="Injuries or medical considerations"
+            placeholder="e.g. Bad left knee, managing blood pressure"
+            value={injuries}
+            onChange={setInjuries}
+          />
+          <IntakeField
+            label="Typical weekly schedule"
+            placeholder="e.g. Work 9-5, gym mornings, travel most weekends"
+            value={schedule}
+            onChange={setSchedule}
+          />
+          <IntakeField
+            label="Anything else your coach should know?"
+            placeholder="Optional"
+            value={intakeNotes}
+            onChange={setIntakeNotes}
+          />
+        </div>
+
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={onBack} disabled={busy}>
@@ -314,5 +384,31 @@ function ClientStep({ name, onBack }: { name: string; onBack: () => void }) {
         </div>
       </form>
     </Card>
+  );
+}
+
+function IntakeField({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <textarea
+        rows={2}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={1000}
+        className="w-full rounded-lg border border-gray-300 bg-surface p-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+      />
+    </div>
   );
 }

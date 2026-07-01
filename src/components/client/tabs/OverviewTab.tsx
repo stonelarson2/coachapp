@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useWorkspace } from "../context";
+import { WeeklyRecap } from "./WeeklyRecap";
 import { useWeightEntries, logWeight } from "@/lib/data";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Stat } from "@/components/ui";
 import { energyLabel, formatWeight, fromKg, toKg, todayISO } from "@/lib/units";
@@ -17,6 +18,8 @@ export function OverviewTab() {
 
   return (
     <div className="space-y-6">
+      <WeeklyRecap />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Current weight" value={formatWeight(current, unit)} />
         <Stat

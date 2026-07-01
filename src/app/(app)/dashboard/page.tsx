@@ -7,6 +7,7 @@ import { useClients } from "@/lib/data";
 import { authedFetch } from "@/lib/api";
 import { Guard } from "@/components/Guard";
 import { AddClientDialog } from "@/components/coach/AddClientDialog";
+import { AdherenceBadge } from "@/components/AdherenceBadge";
 import { Badge, Button, Card, Spinner, Stat } from "@/components/ui";
 import { formatWeight } from "@/lib/units";
 import type { UserDoc } from "@/lib/types";
@@ -135,6 +136,7 @@ function DashboardInner() {
                 <tr>
                   <th className="px-5 py-3">Client</th>
                   <th className="px-5 py-3">Goal</th>
+                  <th className="px-5 py-3">Adherence (14d)</th>
                   <th className="px-5 py-3">Current weight</th>
                   <th className="px-5 py-3">Change</th>
                   <th className="px-5 py-3 text-right">
@@ -265,6 +267,13 @@ function ClientRow({
         >
           {goal}
         </Badge>
+      </td>
+      <td className="px-5 py-3">
+        <AdherenceBadge
+          userId={client.uid}
+          calorieTarget={client.calorieTarget}
+          macroTargets={client.macroTargets}
+        />
       </td>
       <td className="px-5 py-3 text-gray-900">{formatWeight(current, unit)}</td>
       <td className="px-5 py-3">

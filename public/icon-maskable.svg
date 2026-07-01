@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Full-bleed background so the icon fills the maskable safe zone on any shape. -->
+  <rect width="512" height="512" fill="#4f46e5"/>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+        font-family="Arial, Helvetica, sans-serif" font-weight="700"
+        font-size="230" fill="#ffffff">C</text>
+</svg>

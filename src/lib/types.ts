@@ -17,6 +17,24 @@ export type MeetingFrequency = "weekly" | "biweekly" | "monthly" | "off";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
 
+/** Client intake questionnaire, captured at onboarding; visible to the coach. */
+export interface Intake {
+  /** What the client wants to achieve. */
+  primaryGoal?: string;
+  /** Food allergies / intolerances. */
+  allergies?: string;
+  /** Foods they dislike or want to avoid. */
+  dislikes?: string;
+  /** Injuries or medical considerations. */
+  injuries?: string;
+  /** Typical weekly schedule / availability. */
+  schedule?: string;
+  /** Prior dieting / training experience. */
+  experience?: string;
+  /** Anything else the client wants their coach to know. */
+  notes?: string;
+}
+
 export interface Profile {
   age: number;
   heightCm: number;
@@ -88,6 +106,10 @@ export interface UserDoc {
   currentWeightKg?: number;
   /** True for the seeded demo client created via "Load example client". */
   isExample?: boolean;
+  /** Client intake questionnaire answers (set at onboarding). */
+  intake?: Intake;
+  /** Private coach-only notes about this client. Never shown to the client. */
+  coachNotes?: string;
   createdAt: number; // epoch ms
 }
 
