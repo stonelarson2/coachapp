@@ -16,6 +16,7 @@ import { CheckinTab } from "./tabs/CheckinTab";
 import { MessageTab } from "./tabs/MessageTab";
 import { PhotoTab } from "./tabs/PhotoTab";
 import { InsightTab } from "./tabs/InsightTab";
+import { BillingTab } from "./tabs/BillingTab";
 
 /**
  * The tabbed per-client workspace, shared by:
@@ -52,6 +53,7 @@ export function ClientWorkspace({ userId }: { userId: string }) {
     { id: "message", label: "Messages", content: <MessageTab /> },
     { id: "photo", label: "Photos", content: <PhotoTab /> },
     { id: "insight", label: "Insights", content: <InsightTab /> },
+    { id: "billing", label: "Billing", content: <BillingTab /> },
   ];
 
   return (

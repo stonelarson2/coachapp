@@ -73,6 +73,8 @@ export interface Billing {
   stripeCustomerId?: string;
   /** Subscription id for installment plans. */
   stripeSubscriptionId?: string;
+  /** Number of installment payments collected so far (installment plans only). */
+  installmentsPaid?: number;
   /** ISO date the current access period ends (installments) or plan ends. */
   currentPeriodEnd?: string;
   /** Epoch ms of the last successful payment. */
