@@ -12,6 +12,78 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
+/** Shared shell for a simple reminder email with one call-to-action button. */
+function reminderHtml({
+  heading,
+  body,
+  ctaLabel,
+  ctaPath,
+}: {
+  heading: string;
+  body: string;
+  ctaLabel: string;
+  ctaPath: string;
+}): string {
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;color:#111">
+  <h2 style="margin-bottom:4px">${heading}</h2>
+  <p style="color:#555;margin-top:0">${body}</p>
+  <a href="${APP_URL}${ctaPath}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;margin-top:8px">
+    ${ctaLabel}
+  </a>
+  <p style="margin-top:24px;font-size:13px;color:#888">
+    You're getting this because you're coaching with CoachFit. Reply to your coach if you'd like to change your reminders.
+  </p>
+</body>
+</html>`;
+}
+
+/** Nudge a client who hasn't logged any food today. */
+export async function sendLogFoodReminderEmail(
+  to: string,
+  name: string,
+): Promise<boolean> {
+  const resend = getResend();
+  if (!resend) return false;
+  const first = name.split(" ")[0] || "there";
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Don't forget to log your food today 🍽️",
+    html: reminderHtml({
+      heading: `Hey ${first}!`,
+      body: "You haven't logged any food yet today. A quick log keeps your coach in the loop and your progress on track.",
+      ctaLabel: "Log today's food",
+      ctaPath: "/me",
+    }),
+  });
+  return true;
+}
+
+/** Nudge a client who hasn't recorded a weigh-in in the last week. */
+export async function sendWeighInReminderEmail(
+  to: string,
+  name: string,
+): Promise<boolean> {
+  const resend = getResend();
+  if (!resend) return false;
+  const first = name.split(" ")[0] || "there";
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Time for a weigh-in ⚖️",
+    html: reminderHtml({
+      heading: `Hey ${first}!`,
+      body: "It's been a week since your last weigh-in. A fresh number helps your coach adjust your plan. It only takes a few seconds.",
+      ctaLabel: "Log your weight",
+      ctaPath: "/me",
+    }),
+  });
+  return true;
+}
+
 export async function sendClientInviteEmail({
   coachName,
   clientName,
