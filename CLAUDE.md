@@ -10,8 +10,8 @@ clients track their own nutrition, weight, photos, and message their coach.
 - **Firebase**: Auth (email/password), Firestore (data), Storage (progress photos)
 - **Recharts** for progress charts
 - **Anthropic Claude SDK** (server-side only) for AI Insights, the **AI food estimator**, and **AI-drafted check-in replies**
-- **Resend** for transactional email (client invites)
-- **Stripe** for billing (WIP — see Roadmap)
+- **Resend** for transactional email (client invites + food/weigh-in reminder nudges)
+- **Stripe** for billing (code complete; needs env-var config to go live — see Roadmap)
 
 **🔴 LIVE in production at https://mycoachfit.xyz** (Vercel project `coaching`, GitHub `stonelarson2/coachapp`, Firebase `coaching-app-177c0`). Deploy with `vercel --prod --yes`. Push to `main` is the source of truth.
 
@@ -31,15 +31,17 @@ npm run lint       # eslint
 
 - **Auth state**: `src/context/AuthContext.tsx` exposes `useAuth()` → `{ user, profile, loading, signup, login, logout }`. `profile` is the realtime Firestore `users/{uid}` doc.
 - **Routing**: marketing/login/signup/onboarding are top-level routes. The authed app lives under the `src/app/(app)` route group, guarded by `src/components/Guard.tsx` and wrapped in `src/components/AppShell.tsx` (role-aware sidebar). Coach home = `/dashboard`; client home = `/me`; coach views a client at `/clients/[id]`.
-- **Firebase is lazy**: never import a live `auth`/`db` instance at module scope. Use the getters in `src/lib/firebase/client.ts` (`getFirebaseAuth`, `getDb`, `getStorageInstance`) and `src/lib/firebase/admin.ts` (`getAdminAuth`, `getAdminDb`). This keeps SSR/`next build` from initializing Firebase. **Keep it this way.**
+- **Firebase is lazy**: never import a live `auth`/`db` instance at module scope. Use the getters in `src/lib/firebase/client.ts` (`getFirebaseAuth`, `getDb`, `getStorageInstance`) and `src/lib/firebase/admin.ts` (`getAdminAuth`, `getAdminDb`). This keeps SSR/`next build` from initializing Firebase. **Keep it this way.** `getFirebaseAuth` uses `initializeAuth` with **explicit persistence** `[indexedDBLocalPersistence, browserLocalPersistence]` so users stay signed in across browser restarts (the implicit default could fall back to in-memory and log them out) — keep the explicit persistence.
 - **Data layer**: all client-side Firestore access (realtime hooks + write helpers) lives in `src/lib/data.ts` (`useClients`, `useUserDoc`, `useWeightEntries`, `useFoodLog`, `usePhotos`, `useMessages`, `useInsights`, `useCheckins`, plus `logWeight`, `addFoodLog`, `importFoodLogs`, `uploadPhoto`, `sendMessage`, `submitCheckin`, `replyToCheckin`, `updateUserFields`, …). Add new data access here.
 - **Per-client workspace**: `src/components/client/ClientWorkspace.tsx` renders the tabbed UI shared by coach and client views. Tabs are in `src/components/client/tabs/`. Shared context (`target`, `viewerId`, `viewerRole`, `isCoachView`, `unit`) via `src/components/client/context.tsx` → `useWorkspace()`.
 - **Nutrition math**: `src/lib/nutrition.ts` — Mifflin-St Jeor BMR → TDEE → maintain/cut/bulk targets and macro auto-calc. Tuning constants are exported there.
 - **Units**: weight is stored in **kg**; display unit (`lb` default) is per-user. Convert with helpers in `src/lib/units.ts`. Dates are ISO `YYYY-MM-DD` local-time strings.
-- **Server routes** (`src/app/api/*`): `onboarding` (validates coach password / invite code, assigns role via Admin SDK), `insights` (aggregates data, calls Claude, persists), `clients` (coach-only; Admin SDK creates a client auth account + linked `users` doc, **auto-generates a password and emails the invite via Resend**; `mode:"example"` seeds a demo client), `food-estimate` (any signed-in user; Claude **vision + forced tool use** → structured macros from a food photo or text description), and `checkin-draft` (coach-only; Claude drafts a reply to a client's weekly check-in). Use `src/lib/server-auth.ts#verifyRequest` to verify the bearer ID token. Call them from the client with `src/lib/api.ts#authedFetch`.
+- **Server routes** (`src/app/api/*`): `onboarding` (validates coach password / invite code, assigns role via Admin SDK; also persists the sanitized client **intake** questionnaire), `insights` (aggregates data, calls Claude, persists), `clients` (coach-only; Admin SDK creates a client auth account + linked `users` doc, **auto-generates a password and emails the invite via Resend**; `mode:"example"` seeds a demo client), `food-estimate` (any signed-in user; Claude **vision + forced tool use** → structured macros from a food photo or text description), `checkin-draft` (coach-only; Claude drafts a reply to a client's weekly check-in), `cron/reminders` (GET, secured by `CRON_SECRET` bearer; daily food-not-logged + Sunday weigh-in nudges via Resend; scheduled in `vercel.json`), and **Stripe**: `stripe/checkout` (coach-only; creates a Checkout Session for a client and returns the hosted URL) + `stripe/webhook` (verifies signature, updates `users/{uid}.billing`). Use `src/lib/server-auth.ts#verifyRequest` to verify the bearer ID token. Call them from the client with `src/lib/api.ts#authedFetch`.
 - **AI patterns**: server routes use `process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"` (vision-capable). For reliable structured JSON, use **forced tool use** (`tool_choice: {type:"tool"}`) — see `food-estimate/route.ts`. Never parse macros out of prose.
-- **Email**: `src/lib/email.ts` (`sendClientInviteEmail`) wraps Resend; no-ops if `RESEND_API_KEY` is unset. Sends from `noreply@mycoachfit.xyz` (domain verified in Resend via Porkbun DNS).
-- **Other lib helpers added**: `src/lib/mfpImport.ts` (parse MyFitnessPal CSV), `src/lib/image.ts` (client-side canvas downscaling for photo uploads), `src/lib/billing.ts` (Stripe plan catalog), `src/lib/stripe/server.ts` (lazy Stripe client).
+- **Email**: `src/lib/email.ts` (`sendClientInviteEmail`, `sendLogFoodReminderEmail`, `sendWeighInReminderEmail`) wraps Resend; no-ops if `RESEND_API_KEY` is unset. Sends from `noreply@mycoachfit.xyz` (domain verified in Resend via Porkbun DNS).
+- **Adherence / stats**: `src/lib/adherence.ts` — pure helpers (`computeAdherence`, `adherenceBand`, `loggingStreak`, `weeklyRecap`, `totalsByDay`) that take food entries (from `useFoodLogRange`) and produce a 0-100 adherence score (logging consistency + calories ±15% + protein ≥90%, equal weights), streaks, and the weekly recap. Rendered by `src/components/AdherenceBadge.tsx` (dashboard + overview), `client/tabs/WeeklyRecap.tsx` (Overview "This week" card), `client/tabs/CoachNotes.tsx`, `client/tabs/IntakeSummary.tsx`, and `client/tabs/BillingTab.tsx`.
+- **Other lib helpers added**: `src/lib/mfpImport.ts` (parse MyFitnessPal CSV), `src/lib/image.ts` (client-side canvas downscaling for photo uploads), `src/lib/billing.ts` (Stripe plan catalog), `src/lib/stripe/server.ts` (lazy Stripe client). Stripe test prices are provisioned by `scripts/provision-stripe.mjs`.
+- **PWA**: installable via `src/app/manifest.ts` (served at `/manifest.webmanifest`), SVG icons in `public/icon.svg` + `public/icon-maskable.svg`, and a conservative service worker `public/sw.js` (network-first navigations, cache only immutable `/_next/static`) registered by `src/components/ServiceWorkerRegister.tsx` (production only, mounted in `Providers`). Install metadata + `themeColor` live in `src/app/layout.tsx`.
 - **Name handling**: the signup name must flow into the profile. The onboarding page sends `user.displayName` in the `/api/onboarding` body (the ID token's `decoded.name` is stale right after signup, so don't rely on it); the route falls back to the Admin SDK's `getUser().displayName` before ever defaulting to `"Unnamed"`. Users can edit their own name in **Settings** (`NameEditor` → `updateUserFields(uid, { name })`).
 - **UI kit**: lightweight Tailwind primitives in `src/components/ui.tsx` (`Button`, `Card`, `Input`, `Select`, `Stat`, `Badge`, `Spinner`, …). Prefer these over new component libraries.
 - **Theming (light/dark)**: `src/context/ThemeContext.tsx` exposes `useTheme()` → `{ theme: 'light'|'dark'|'system', resolved, setTheme }` (localStorage-persisted; anti-flash inline script in `src/app/layout.tsx`). Colors are **semantic CSS tokens** in `src/app/globals.css`: use `bg-surface`, `bg-elevated`, `text-primary-soft-fg`, etc., and Tailwind's gray scale (which is remapped under `.dark`). Cards/inputs use `bg-surface`; modals use `bg-elevated`. Prefer these tokens over hardcoded `bg-white`/`text-gray-*` colors so new UI themes automatically. Recharts charts read `resolved` for axis/grid/tooltip colors (see `ProgressTab.tsx#chartTheme`).
@@ -52,8 +54,8 @@ npm run lint       # eslint
 
 ## Data model (Firestore)
 
-`users/{uid}` (role, profile, goal, calorieTarget, macroTargets, meeting, start/currentWeightKg, inviteCode/coachId, **`billing`**) ·
-`weightEntries` · `foodLogs` · `photos` · `messages` · `insights` · **`checkins`** (weekly: `weekOf` Monday ISO, `weightKg`, `ratings` six 1-5 self-scores, `notes`, `coachReply`). Types in `src/lib/types.ts`. Check-ins query needs the composite index in `firestore.indexes.json` (`userId` + `weekOf desc`).
+`users/{uid}` (role, profile, goal, calorieTarget, macroTargets, meeting, start/currentWeightKg, inviteCode/coachId, **`billing`**, **`intake`** client questionnaire, **`coachNotes`** private coach-only text) ·
+`weightEntries` · `foodLogs` · `favorites` · `photos` · `messages` · `insights` · **`checkins`** (weekly: `weekOf` Monday ISO, `weightKg`, `ratings` six 1-5 self-scores, `notes`, `coachReply`). Types in `src/lib/types.ts`. Check-ins query needs the composite index in `firestore.indexes.json` (`userId` + `weekOf desc`). The Stripe webhook can look up a client by `billing.stripeCustomerId` (nested-field equality; relies on Firestore's default single-field index). No rules change needed for `billing`/`intake`/`coachNotes` — all written server-side (Admin SDK) or by the coach on the client doc (already permitted).
 
 ## Project skills
 
@@ -75,7 +77,10 @@ third-party community source) and include Python helper scripts.
   `stonelarson2/coachapp` (`main`). `vercel` CLI installed + logged in. Redeploy: `vercel --prod --yes`.
 - **Env vars**: all `.env.local` vars are mirrored as Vercel **production** env vars (Firebase
   client+admin, `ANTHROPIC_API_KEY`/`MODEL`, `COACH_SIGNUP_PASSWORD`=`Wideopen2007!!`,
-  `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL=https://mycoachfit.xyz`).
+  `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL=https://mycoachfit.xyz`,
+  `CRON_SECRET` **set in Vercel prod** for the reminders cron). Stripe vars (`STRIPE_SECRET_KEY`,
+  `STRIPE_WEBHOOK_SECRET`, six `NEXT_PUBLIC_STRIPE_PRICE_*`) are **NOT set yet** — see roadmap.
+- **Coach invite code** (Stone Larson, `stonelarson2007@gmail.com`): **`D76LMR`** (auto-generated; also shown on the coach Dashboard).
 - **Firebase** `coaching-app-177c0` (owner `stonelarson19@gmail.com`): Firestore + `firestore.rules`
   + indexes **deployed**. `mycoachfit.xyz` is in Auth → Authorized domains.
 - **Resend**: domain `mycoachfit.xyz` verified (DKIM/SPF in Porkbun). Invite emails work.
@@ -90,23 +95,33 @@ silently corrupts the value (this caused `auth/network-request-failed` on the Fi
 
 ## Roadmap / pending work
 
-**Done this session:** ✅ deployed to Vercel + custom domain · ✅ MyFitnessPal CSV import
+**Done earlier:** ✅ deployed to Vercel + custom domain · ✅ MyFitnessPal CSV import
 (`src/lib/mfpImport.ts` + Food Log tab) · ✅ Resend invite emails · ✅ AI food estimator ·
 ✅ light/dark theme · ✅ mobile polish · ✅ **weekly check-ins** (Check-ins tab: client form
 with weight + six 1-5 ratings + notes; coach review with **AI-drafted replies**).
 
-1. **Stripe billing — PAUSED mid-build.** 3 plans: **3-month $600, 6-month $1000, 1-year $1800**
-   (upfront), or monthly installments over the term at **+10% premium**. Stripe account
-   **"Stone Coaching"** (`acct_1TNfIO6divSS0hm8`) connected (also via Stripe MCP tools).
-   Building/testing in **Stripe TEST mode first**, then flip to live. **Scaffolding committed**:
-   `src/lib/stripe/server.ts`, `src/lib/billing.ts` (plan catalog, price IDs come from env vars
-   `NEXT_PUBLIC_STRIPE_PRICE_*`), `Billing` type + `billing` field on `UserDoc`. **To resume:**
-   get user's `sk_test_...` key → provision 6 test prices (upfront+installment ×3) → build
-   `/api/stripe/checkout` (Checkout Session) + `/api/stripe/webhook` (update `users/{uid}.billing`)
-   + Billing UI (coach sends a checkout link; status badge) → test with card `4242 4242 4242 4242`.
-2. **Reminders & PWA.** Email nudges (via Resend) to log food / weigh in; make the app installable
-   (manifest + service worker).
-3. **Enable Firebase Storage** to unblock progress photos (incl. attaching photos to check-ins).
+**Done 2026-07-01 (all deployed + pushed):** ✅ **stay-logged-in** auth persistence fix ·
+✅ **coach notes** per client · ✅ **adherence score** (dashboard column + client overview) ·
+✅ **streaks & weekly recap** ("This week" card) · ✅ **client intake questionnaire** ·
+✅ **PWA** (installable) · ✅ **email reminders** (daily food + Sunday weigh-in cron, `CRON_SECRET` live) ·
+✅ **Stripe billing code** (checkout + webhook + Billing tab + provisioning script) — **deployed but not yet functional; needs config (below).**
+
+1. **Stripe billing — CODE COMPLETE, needs configuration to go live.** 3 plans: **3-month $600,
+   6-month $1000, 1-year $1800** (upfront), or monthly installments over the term at **+10% premium**.
+   Stripe account **"Stone Coaching"** (`acct_1TNfIO6divSS0hm8`). Built: `/api/stripe/checkout`,
+   `/api/stripe/webhook` (handles `checkout.session.completed`, `invoice.paid` [installment counting +
+   auto `cancel_at_period_end` at term end], `invoice.payment_failed`, `customer.subscription.deleted`),
+   Billing tab in `ClientWorkspace`, `scripts/provision-stripe.mjs`. **To activate (user is adding env
+   vars themselves, TEST mode first):** (a) set `STRIPE_SECRET_KEY=sk_test_...` in `.env.local` + Vercel;
+   (b) run `node scripts/provision-stripe.mjs` → paste the six `NEXT_PUBLIC_STRIPE_PRICE_*` into `.env.local`
+   + Vercel; (c) add a Stripe webhook → `https://mycoachfit.xyz/api/stripe/webhook` (the 4 events above)
+   → `STRIPE_WEBHOOK_SECRET=whsec_...` in Vercel; (d) redeploy; (e) test with card `4242 4242 4242 4242`.
+   Prefer the Vercel dashboard UI for env vars (avoids the Windows BOM gotcha below).
+2. **Enable Firebase Storage** to unblock progress photos (incl. attaching photos to check-ins).
+3. **Deferred UX ask (unresolved):** user dislikes the Food Log "Done" button (thinks it's required
+   to save — it isn't; food saves instantly on "Add to log", `MealSection` in `FoodLogTab.tsx`).
+   Was mid-deciding among: rename "Done"→"Close" + "Added ✓" toast / auto-close after each add /
+   remove the +Add·Done toggle (always-open search). Not yet implemented — confirm preference first.
 
 > The user does **training/workout programming in a separate app** — do NOT build workout/exercise
 > features here.
