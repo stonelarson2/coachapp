@@ -22,6 +22,7 @@ import {
   uploadBytes,
 } from "firebase/storage";
 import { getDb, getStorageInstance } from "@/lib/firebase/client";
+import { emitFoodLogged } from "@/lib/streak";
 import type {
   CheckinDoc,
   CheckinRatings,
@@ -228,6 +229,7 @@ export async function addFoodLog(
     ...input,
     createdAt: Date.now(),
   });
+  emitFoodLogged({ userId, date });
 }
 
 export async function deleteFoodLog(id: string): Promise<void> {

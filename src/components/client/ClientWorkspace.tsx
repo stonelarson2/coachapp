@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useUserDoc } from "@/lib/data";
 import { Badge, Spinner } from "@/components/ui";
 import { Tabs, type TabDef } from "@/components/Tabs";
+import { StreakCelebration } from "@/components/StreakCelebration";
 import { WorkspaceProvider } from "./context";
 import { OverviewTab } from "./tabs/OverviewTab";
 import { ClientDetailTab } from "./tabs/ClientDetailTab";
@@ -62,6 +63,7 @@ export function ClientWorkspace({ userId }: { userId: string }) {
     <WorkspaceProvider
       value={{ target, viewerId: profile.uid, viewerRole: profile.role, isCoachView, unit, energyUnit }}
     >
+      {!isCoachView && <StreakCelebration userId={target.uid} />}
       <div className="space-y-4">
         {isCoachView && (
           <Link href="/dashboard" className="text-sm text-gray-500 hover:underline">
