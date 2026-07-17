@@ -72,6 +72,12 @@ export function addDays(iso: string, days: number): string {
   return toISODate(d);
 }
 
+/** Monday (local) of the week containing `iso`. */
+export function startOfWeekMonday(iso: string): string {
+  const dow = fromISODate(iso).getDay(); // 0 Sun … 6 Sat
+  return addDays(iso, -((dow + 6) % 7));
+}
+
 /** ISO date `days` ago from today (inclusive window start when days=N-1). */
 export function daysAgoISO(days: number): string {
   return addDays(todayISO(), -days);

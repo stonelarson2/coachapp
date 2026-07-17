@@ -1,6 +1,8 @@
 // Aggregation helpers for the Progress tab (pure functions).
-import { addDays } from "./units";
-import type { FoodLogEntry, WeightEntry } from "./types";
+import { addDays, startOfWeekMonday, todayISO } from "./units";
+import type { FoodLogEntry, MacroTargets, WeightEntry } from "./types";
+
+const CAL_PER_G = { protein: 4, carbs: 4, fat: 9 };
 
 export interface DailyTotals {
   date: string;
@@ -87,4 +89,86 @@ export function weightChangeOverWindow(
   if (within.length < 2) return null;
   const sorted = [...within].sort((a, b) => a.date.localeCompare(b.date));
   return sorted[sorted.length - 1].weightKg - sorted[0].weightKg;
+}
+
+export interface WeekSummary {
+  /** Monday ISO of the week. */
+  weekStart: string;
+  daysLogged: number;
+  /** Averages over logged days only. */
+  avgCalories: number;
+  avgProteinG: number;
+  avgCarbsG: number;
+  avgFatG: number;
+  /** Weight change across the week (latest − earliest weigh-in), null if <2. */
+  weightChangeKg: number | null;
+}
+
+/**
+ * Summarize the last `weeks` calendar weeks (Monday-start), most-recent first.
+ * Nutrition averages are over logged days only; weight change uses weigh-ins
+ * that fall inside each week.
+ */
+export function weeklySummaries(
+  foods: FoodLogEntry[],
+  weights: WeightEntry[],
+  weeks: number,
+  todayIso: string = todayISO(),
+): WeekSummary[] {
+  const thisMonday = startOfWeekMonday(todayIso);
+  const out: WeekSummary[] = [];
+  for (let w = 0; w < weeks; w++) {
+    const weekStart = addDays(thisMonday, -7 * w);
+    const weekEnd = addDays(weekStart, 6);
+    const series = buildDailySeries(
+      foods.filter((e) => e.date >= weekStart && e.date <= weekEnd),
+      weekStart,
+      7,
+    );
+    const avg = dailyAverages(series);
+    out.push({
+      weekStart,
+      daysLogged: avg.loggedDays,
+      avgCalories: avg.calories,
+      avgProteinG: avg.proteinG,
+      avgCarbsG: avg.carbsG,
+      avgFatG: avg.fatG,
+      weightChangeKg: weightChangeOverWindow(
+        weights.filter((e) => e.date >= weekStart && e.date <= weekEnd),
+        weekStart,
+      ),
+    });
+  }
+  return out;
+}
+
+export interface MacroSplit {
+  /** Percent of total calories from each macro (0-100). */
+  proteinPct: number;
+  carbsPct: number;
+  fatPct: number;
+}
+
+/** Convert macro grams into their share of total calories. */
+export function macroCalorieSplit(grams: {
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}): MacroSplit | null {
+  const p = grams.proteinG * CAL_PER_G.protein;
+  const c = grams.carbsG * CAL_PER_G.carbs;
+  const f = grams.fatG * CAL_PER_G.fat;
+  const total = p + c + f;
+  if (total <= 0) return null;
+  return {
+    proteinPct: Math.round((p / total) * 100),
+    carbsPct: Math.round((c / total) * 100),
+    fatPct: Math.round((f / total) * 100),
+  };
+}
+
+/** The target macro split from a client's macro targets, if set. */
+export function targetMacroSplit(mt?: MacroTargets): MacroSplit | null {
+  if (!mt?.proteinG || !mt?.carbsG || !mt?.fatG) return null;
+  return macroCalorieSplit(mt);
 }

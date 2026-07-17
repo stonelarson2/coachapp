@@ -9,6 +9,7 @@ import { WorkspaceProvider } from "./context";
 import { OverviewTab } from "./tabs/OverviewTab";
 import { ClientDetailTab } from "./tabs/ClientDetailTab";
 import { ProgressTab } from "./tabs/ProgressTab";
+import { WeekTab } from "./tabs/WeekTab";
 import { FoodLogTab } from "./tabs/FoodLogTab";
 import { NutritionTab } from "./tabs/NutritionTab";
 import { MeetingTab } from "./tabs/MeetingTab";
@@ -45,6 +46,7 @@ export function ClientWorkspace({ userId }: { userId: string }) {
   const tabs: TabDef[] = [
     { id: "overview", label: "Overview", content: <OverviewTab /> },
     { id: "progress", label: "Progress", content: <ProgressTab /> },
+    { id: "week", label: "This Week", content: <WeekTab /> },
     { id: "checkin", label: "Check-ins", content: <CheckinTab /> },
     { id: "detail", label: "Client Detail", content: <ClientDetailTab /> },
     { id: "food", label: "Food Log", content: <FoodLogTab /> },
