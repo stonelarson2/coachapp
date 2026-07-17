@@ -106,6 +106,23 @@ with weight + six 1-5 ratings + notes; coach review with **AI-drafted replies**)
 ✅ **PWA** (installable) · ✅ **email reminders** (daily food + Sunday weigh-in cron, `CRON_SECRET` live) ·
 ✅ **Stripe billing code** (checkout + webhook + Billing tab + provisioning script) — **deployed but not yet functional; needs config (below).**
 
+**Done 2026-07-16 (all deployed + pushed):** ✅ **"This Week" tab** (`client/tabs/WeekTab.tsx`,
+registered in `ClientWorkspace` after Progress) — toggles between a per-day breakdown (macro
+target **rings** P/C/F + target-tinted calories, today highlighted) and weekly totals with
+**week-over-week deltas**. ✅ **Progress tab upgrades**: daily-calories chart is now a
+`ComposedChart` with a dashed target line, per-day color bands (green ±15% / amber over / indigo
+under / gray unlogged) and a red 7-day trailing-avg trend line; macro breakdown replaced with a
+**macro-split donut** (inner=actual %, muted outer ring=target) + a **week-by-week comparison**
+table (6 weeks). New pure helpers in `src/lib/progress.ts` (`weeklySummaries`, `macroCalorieSplit`,
+`targetMacroSplit`) and `startOfWeekMonday` moved to `src/lib/units.ts`. ✅ **Food-logging streak
+celebration**: `addFoodLog` emits a `food-logged` event (`src/lib/streak.ts` pub/sub; bulk MFP
+import excluded); `src/components/StreakCelebration.tsx` (mounted client-self-view only in
+`ClientWorkspace`) pops an animated 🔥 toast on every log — **full celebration** (sparkles + hype
+copy) only on **milestone streaks** (`isStreakMilestone`: 1, 2, 3, 5, then every +10 incl. 10/20/30),
+lighter popup otherwise; CSS keyframes in `globals.css` w/ `prefers-reduced-motion` fallback. ✅
+**Streak badge** in the client header (`src/components/StreakBadge.tsx`) — 🔥 pill next to the goal
+badge, hidden when streak is 0. All streak math reuses `loggingStreak` from `src/lib/adherence.ts`.
+
 1. **Stripe billing — CODE COMPLETE, needs configuration to go live.** 3 plans: **3-month $600,
    6-month $1000, 1-year $1800** (upfront), or monthly installments over the term at **+10% premium**.
    Stripe account **"Stone Coaching"** (`acct_1TNfIO6divSS0hm8`). Built: `/api/stripe/checkout`,
