@@ -6,6 +6,7 @@ import { useUserDoc } from "@/lib/data";
 import { Badge, Spinner } from "@/components/ui";
 import { Tabs, type TabDef } from "@/components/Tabs";
 import { StreakCelebration } from "@/components/StreakCelebration";
+import { StreakBadge } from "@/components/StreakBadge";
 import { WorkspaceProvider } from "./context";
 import { OverviewTab } from "./tabs/OverviewTab";
 import { ClientDetailTab } from "./tabs/ClientDetailTab";
@@ -85,6 +86,7 @@ export function ClientWorkspace({ userId }: { userId: string }) {
           >
             {target.goal?.type ?? "maintain"}
           </Badge>
+          <StreakBadge userId={target.uid} />
         </div>
         <Tabs tabs={tabs} />
       </div>
